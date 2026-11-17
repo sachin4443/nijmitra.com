@@ -1,0 +1,41 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+.vs/
+TestResults/
+publish/
+*.nupkg
+
+# Node / Vite
+node_modules/
+dist/
+dev-dist/
+coverage/
+*.tsbuildinfo
+
+# Secrets & local config (NEVER commit)
+.env
+.env.*
+!.env.example
+appsettings.Local.json
+appsettings.*.Local.json
+**/App_Data/
+secrets.json
+*.pfx
+*.pem
+*.key
+
+# Runtime storage
+storage/
+uploads/
+logs/
+*.log
+
+# OS / editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
