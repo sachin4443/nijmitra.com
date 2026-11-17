@@ -113,3 +113,11 @@ public static class ProviderCatalog
 
     public static ProviderDefinition Get(ProviderType type) => All.First(p => p.Type == type);
 }
+
+/// <summary>Lets application services test / directly use configured providers without referencing infrastructure.</summary>
+public interface IProviderGateway
+{
+    Task<ProviderTestResult> TestConnectionAsync(Domain.Entities.CommunicationProvider provider, CancellationToken ct);
+    Task SendDirectAsync(Domain.Entities.CommunicationProvider provider, OutboundMessage message, CancellationToken ct);
+    (string PublicKey, string PrivateKey) GenerateVapidKeys();
+}

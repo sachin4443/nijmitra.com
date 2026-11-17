@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.SignalR;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -49,12 +50,14 @@ builder.Services.Configure<Microsoft.AspNetCore.Mvc.ApiBehaviorOptions>(o => o.I
         .ToDictionary(kv => char.ToLowerInvariant(kv.Key.FirstOrDefault()) + kv.Key[Math.Min(1, kv.Key.Length)..], kv => kv.Value!.Errors.Select(e => string.IsNullOrEmpty(e.ErrorMessage) ? "Invalid value." : e.ErrorMessage).ToArray());
     return new Microsoft.AspNetCore.Mvc.BadRequestObjectResult(new { status = 400, title = "Please correct the highlighted fields.", code = "validation_failed", errors });
 });
-builder.Services.AddSignalR(o => { o.MaximumReceiveMessageSize = 64 * 1024; o.KeepAliveInterval = TimeSpan.FromSeconds(15); o.ClientTimeoutInterval = TimeSpan.FromSeconds(45); })
+builder.Services.AddSignalR(o => { o.AddFilter(new SessionHubFilter()); o.MaximumReceiveMessageSize = 64 * 1024; o.KeepAliveInterval = TimeSpan.FromSeconds(15); o.ClientTimeoutInterval = TimeSpan.FromSeconds(45); })
     .AddJsonProtocol(o => o.PayloadSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
 
-var jwt = builder.Configuration.GetSection("Jwt").Get<JwtOptions>() ?? new JwtOptions();
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer(o =>
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme).AddJwtBearer();
+// Bound lazily from options so keys supplied by any configuration source (env, secrets, test host) are honoured.
+builder.Services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme).Configure<Microsoft.Extensions.Options.IOptions<JwtOptions>>((o, jwtOptions) =>
 {
+    var jwt = jwtOptions.Value;
     o.MapInboundClaims = false;
     o.TokenValidationParameters = new TokenValidationParameters
     {

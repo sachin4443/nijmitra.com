@@ -92,6 +92,20 @@ public class AuthController(AuthService auth, ICurrentUser current, IWebHostEnvi
         return Ok(new { message = "Password updated. Please sign in." });
     }
 
+    /// <summary>Ends "sign in as user" and restores the administrator's own session.</summary>
+    [Authorize, HttpPost("impersonation/end")]
+    public async Task<IActionResult> EndImpersonation(CancellationToken ct)
+    {
+        RequireCsrfHeader();
+        if (!current.IsImpersonating) throw new Application.Common.ValidationAppException("You are not signed in as another user.");
+        await auth.LogoutAsync(current.SessionId, null, "impersonation_ended", ct);
+        var adminRt = Request.Cookies[AdminRefreshCookie] ?? throw new Application.Common.UnauthorizedAppException("Your admin session has ended. Please sign in again.", "session_expired");
+        Response.Cookies.Delete(AdminRefreshCookie, CookieOptions(DateTime.UnixEpoch));
+        var tokens = await auth.RefreshAsync(adminRt, ct);
+        SetRefreshCookie(RefreshCookie, tokens.RefreshToken, tokens.RefreshTokenExpiresAt);
+        return Ok(new { accessToken = tokens.AccessToken, expiresAt = tokens.AccessTokenExpiresAt });
+    }
+
     private IActionResult Respond(LoginResult result)
     {
         if (result.Tokens is { } t)
@@ -106,7 +120,7 @@ public class AuthController(AuthService auth, ICurrentUser current, IWebHostEnvi
 
     internal CookieOptions CookieOptions(DateTime expires) => new()
     {
-        HttpOnly = true, Secure = Request.IsHttps || !env.IsDevelopment(), SameSite = SameSiteMode.Strict, Path = "/api/auth", Expires = expires, IsEssential = true
+        HttpOnly = true, Secure = Request.IsHttps || env.IsProduction(), SameSite = SameSiteMode.Strict, Path = "/api/auth", Expires = expires, IsEssential = true
     };
 
     /// <summary>Cookie-authenticated endpoints require a custom header, which cross-site forms cannot send (CSRF defence).</summary>

@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\NIJMITRA.API\NIJMITRA.API.csproj" />
+    <ProjectReference Include="..\NIJMITRA.Infrastructure\NIJMITRA.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

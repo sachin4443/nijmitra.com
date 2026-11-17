@@ -179,3 +179,14 @@ public sealed class NotificationDispatcher(IServiceScopeFactory scopes, ILogger<
         [System.Text.Json.Serialization.JsonPropertyName("vars")] public Dictionary<string, string> Vars { get; init; } = Vars;
     }
 }
+
+public sealed class ProviderGateway(ProviderResolver resolver) : IProviderGateway
+{
+    public Task<ProviderTestResult> TestConnectionAsync(CommunicationProvider provider, CancellationToken ct) =>
+        resolver.Implementation(provider.ProviderType).TestConnectionAsync(resolver.Context(provider), ct);
+
+    public Task SendDirectAsync(CommunicationProvider provider, OutboundMessage message, CancellationToken ct) =>
+        resolver.Implementation(provider.ProviderType).SendAsync(resolver.Context(provider), message, ct);
+
+    public (string PublicKey, string PrivateKey) GenerateVapidKeys() => WebPushProvider.GenerateKeys();
+}

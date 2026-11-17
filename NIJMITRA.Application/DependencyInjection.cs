@@ -18,6 +18,7 @@ public static class DependencyInjection
         services.AddScoped<AuthService>();
         services.AddScoped<AccountService>();
         services.AddScoped<FileService>();
+        services.AddScoped<Journal.ReminderPlanner>();
         // Module services are registered by convention: every concrete *Service in the Application assembly.
         foreach (var type in typeof(DependencyInjection).Assembly.GetTypes()
                      .Where(t => t is { IsClass: true, IsAbstract: false, IsPublic: true } && t.Name.EndsWith("Service") && t.GetInterfaces().Length == 0

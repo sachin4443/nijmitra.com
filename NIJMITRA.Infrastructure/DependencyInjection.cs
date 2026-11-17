@@ -63,6 +63,7 @@ public static class DependencyInjection
         services.AddSingleton<IChannelProvider, WebPushProvider>();
         services.AddSingleton<IChannelProvider, WhatsAppCloudProvider>();
         services.AddScoped<ProviderResolver>();
+        services.AddScoped<IProviderGateway, ProviderGateway>();
         services.AddSingleton<NotificationDispatcher>();
         if (config.GetValue("BackgroundJobs:Enabled", true))
             services.AddHostedService(sp => sp.GetRequiredService<NotificationDispatcher>());

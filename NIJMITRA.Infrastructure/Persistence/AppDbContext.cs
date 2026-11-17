@@ -116,6 +116,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUser c
         foreach (var et in mb.Model.GetEntityTypes().Where(t => t.ClrType is { IsClass: true, IsAbstract: false } && t.BaseType == null))
         {
             var clr = et.ClrType;
+            // Keys are generated client-side (UUID v7). Declaring them as never DB-generated lets EF treat any new
+            // entity reached through a navigation as an INSERT instead of assuming it already exists.
+            if (typeof(Entity).IsAssignableFrom(clr)) mb.Entity(clr).Property(nameof(Entity.Id)).ValueGeneratedNever();
             var owned = typeof(IOwnedEntity).IsAssignableFrom(clr);
             var soft = typeof(ISoftDelete).IsAssignableFrom(clr);
             if (owned) GetType().GetMethod(nameof(ApplyOwnerFilter), System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!

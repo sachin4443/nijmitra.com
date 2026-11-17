@@ -8,15 +8,15 @@ Status legend: ✅ implemented & tested · 🟡 implemented, needs external cred
 | 2 | Clean Architecture solution, EF Core + PostgreSQL, migrations, Swagger, Serilog, global exception handling | ✅ |
 | 3 | Branding, theme, login/registration, responsive layout, dashboard | ⏳ |
 | 4 | Authentication & security (registration, optional OTP, PIN, TOTP 2FA, refresh rotation, idle timeout, audit) | ✅ backend · ⏳ UI |
-| 5 | Personal finance | ⬜ |
-| 6 | Document vault & password manager | ⬜ |
-| 7 | Custom tables & product register | ⬜ |
-| 8 | Contacts & Udhar | ⬜ |
-| 9 | Diary & calendar | ⬜ |
-| 10 | Communication center | ⏳ engine + providers done |
-| 11 | Friends & chat | ⬜ |
+| 5 | Personal finance | ✅ backend · ⏳ UI |
+| 6 | Document vault & password manager | ✅ backend · ⏳ UI |
+| 7 | Custom tables & product register | ✅ backend · ⏳ UI |
+| 8 | Contacts & Udhar | ✅ backend · ⏳ UI |
+| 9 | Diary & calendar | ✅ backend · ⏳ UI |
+| 10 | Communication center | ✅ backend · ⏳ UI |
+| 11 | Friends & chat | ✅ backend · ⏳ UI |
 | 12 | PWA | ⬜ |
-| 13 | Admin panel | ⬜ |
+| 13 | Admin panel | ✅ backend · ⏳ UI |
 | 14 | Testing & production readiness | ⬜ |
 
 ## Log
@@ -35,3 +35,17 @@ Status legend: ✅ implemented & tested · 🟡 implemented, needs external cred
   server-side idle timeout, sessions/devices, password/PIN change, re-authentication, password reset, email verification.
 * Notification engine with encrypted outbox, dispatcher, 9 provider integrations, default policies & templates.
 * Verified manually: register → login → /me → refresh (CSRF header enforced) → 2FA enrol → 2FA login (bad code rejected).
+
+### Phases 5–11, 13 (backend)
+* Finance (expenses, income, categories, budgets + overspend alerts, recurring bills with pending/paid/overdue, reports, PDF/Excel/CSV export).
+* Document vault (folders, versioning, tags, preview/download, expiring share links with download limits).
+* Zero-knowledge password vault API (ciphertext-only storage, history, secure notes, encrypted backup/import).
+* Custom table builder (16 field types incl. formula, validation, unique, safe schema changes with data-loss confirmation, CSV/Excel import, Excel/CSV/PDF export).
+* Product registers (custom fields, expiry filters, import/export), contacts (groups, attachments, 360° summary), Udhar ledger (partial payments, statements, reminders).
+* Diary (sanitised, encrypted at rest), calendar (recurring events, tasks, reminders), reminder planner with dedupe keys.
+* Global search across 12 modules, live dashboard aggregates.
+* Friends & chat (invite codes, NM-ID search, requests, block/report, read/delivery receipts, typing, presence, disappearing messages).
+* Admin: dashboard stats, user management, RBAC, impersonation, settings, branding, DB connection editor, audit logs, reports;
+  communication center (providers, policies, templates, logs, announcements).
+* Background jobs: notification dispatcher, reminders, presence sweep, disappearing messages, idle-session closer, retention & account purge.
+* **Tests: 53 passing** (unit + integration against PostgreSQL) covering all 17 critical security scenarios.
