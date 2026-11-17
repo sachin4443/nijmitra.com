@@ -3,9 +3,9 @@ namespace NIJMITRA.Application.Common;
 /// <summary>Administrator-controlled platform configuration stored in the SystemSettings table.</summary>
 public class PlatformSettings
 {
-    public string ApplicationName { get; set; } = "NIJMITRA";
-    public string Tagline { get; set; } = "Your Life. Your Records. Your Control.";
-    public string HindiTagline { get; set; } = "निजी जीवन का डिजिटल साथी।";
+    public string ApplicationName { get; set; } = "NijMitra";
+    public string Tagline { get; set; } = "Aapka Personal Digital Saathi";
+    public string HindiTagline { get; set; } = "आपका व्यक्तिगत डिजिटल साथी";
     public string? SupportEmail { get; set; }
     public string? LogoFileId { get; set; }
     public string? FaviconFileId { get; set; }
@@ -34,7 +34,7 @@ public class PlatformSettings
 
     // Operations
     public bool MaintenanceMode { get; set; }
-    public string MaintenanceMessage { get; set; } = "NIJMITRA is undergoing scheduled maintenance. Please try again shortly.";
+    public string MaintenanceMessage { get; set; } = "NijMitra is undergoing scheduled maintenance. Please try again shortly.";
     public bool ChatEnabled { get; set; } = true;
 }
 

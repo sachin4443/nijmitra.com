@@ -92,6 +92,21 @@ public class AuthController(AuthService auth, ICurrentUser current, IWebHostEnvi
         return Ok(new { message = "Password updated. Please sign in." });
     }
 
+    /// <summary>
+    /// Starts "sign in as user" (Super Admin). Lives under /api/auth so the admin's own refresh cookie (path-scoped
+    /// to /api/auth) is available to be parked in nm_rt_admin and restored when impersonation ends.
+    /// </summary>
+    [HttpPost("impersonate/{id:guid}"), HasPermission(Domain.Common.Permissions.UsersImpersonate), DenyImpersonation]
+    public async Task<IActionResult> Impersonate(Guid id, [FromServices] Application.Admin.AdminService admin, CancellationToken ct)
+    {
+        RequireCsrfHeader();
+        var adminRt = Request.Cookies[RefreshCookie] ?? throw new Application.Common.UnauthorizedAppException("Your admin session has ended. Please sign in again.", "session_expired");
+        var tokens = await admin.ImpersonateAsync(id, ct);
+        SetRefreshCookie(AdminRefreshCookie, adminRt, tokens.RefreshTokenExpiresAt);
+        SetRefreshCookie(RefreshCookie, tokens.RefreshToken, tokens.RefreshTokenExpiresAt);
+        return Ok(new { accessToken = tokens.AccessToken, expiresAt = tokens.AccessTokenExpiresAt });
+    }
+
     /// <summary>Ends "sign in as user" and restores the administrator's own session.</summary>
     [Authorize, HttpPost("impersonation/end")]
     public async Task<IActionResult> EndImpersonation(CancellationToken ct)

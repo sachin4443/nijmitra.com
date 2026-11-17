@@ -27,17 +27,6 @@ public class AdminController(AdminService svc, AuthService auth, ICurrentUser cu
     [HttpPost("users/{id:guid}/revoke-sessions"), HasPermission(Permissions.UsersManage)] public async Task<IActionResult> Revoke(Guid id, CancellationToken ct) => Ok(new { revoked = await svc.RevokeSessionsAsync(id, ct) });
     [HttpPut("users/{id:guid}/roles"), HasPermission(Permissions.RolesManage)] public async Task<IActionResult> Roles(Guid id, RolesRequest r, CancellationToken ct) { await svc.SetRolesAsync(id, r, ct); return NoContent(); }
 
-    /// <summary>Starts "sign in as user": the admin's refresh cookie is parked in nm_rt_admin and restored on exit.</summary>
-    [HttpPost("users/{id:guid}/impersonate"), HasPermission(Permissions.UsersImpersonate)]
-    public async Task<IActionResult> Impersonate(Guid id, CancellationToken ct)
-    {
-        var tokens = await svc.ImpersonateAsync(id, ct);
-        var opts = new CookieOptions { HttpOnly = true, Secure = Request.IsHttps || env.IsProduction(), SameSite = SameSiteMode.Strict, Path = "/api/auth", Expires = tokens.RefreshTokenExpiresAt };
-        if (Request.Cookies[AuthController.RefreshCookie] is { } adminRt) Response.Cookies.Append(AuthController.AdminRefreshCookie, adminRt, opts);
-        Response.Cookies.Append(AuthController.RefreshCookie, tokens.RefreshToken, opts);
-        return Ok(new { accessToken = tokens.AccessToken, expiresAt = tokens.AccessTokenExpiresAt });
-    }
-
     [HttpGet("roles"), HasPermission(Permissions.UsersView)] public Task<IReadOnlyList<RoleDto>> RoleList(CancellationToken ct) => svc.RolesAsync(ct);
     [HttpGet("permissions"), HasPermission(Permissions.RolesManage)] public Task<IReadOnlyList<PermissionDto>> PermissionList(CancellationToken ct) => svc.PermissionsAsync(ct);
     [HttpPost("roles"), HasPermission(Permissions.RolesManage)] public Task<RoleDto> CreateRole(RoleRequest r, CancellationToken ct) => svc.SaveRoleAsync(null, r, ct);

@@ -295,7 +295,7 @@ public class AuthTests(TestApp app)
         // Normal users cannot reach admin APIs
         Assert.Equal(HttpStatusCode.Forbidden, (await u.Http.GetAsync("/api/admin/users")).StatusCode);
         // Impersonation: works, is audited, user is notified, vault & chat stay blocked
-        var imp = await admin.PostJson($"/api/admin/users/{u.UserId}/impersonate", new { });
+        var imp = await admin.PostJson($"/api/auth/impersonate/{u.UserId}", new { });
         var impClient = app.CreateClient();
         impClient.DefaultRequestHeaders.Authorization = new("Bearer", imp.GetProperty("accessToken").GetString());
         var me = await impClient.GetFromJsonAsync<JsonElement>("/api/me");
@@ -307,6 +307,17 @@ public class AuthTests(TestApp app)
         Assert.Equal(HttpStatusCode.Forbidden, (await impClient.GetAsync("/api/admin/users")).StatusCode);
         Assert.True(await app.WithDbAsync(db => db.AdminAuditLogs.AnyAsync(l => l.TargetUserId == u.UserId && l.Action == "user_impersonation_started")));
         Assert.True(await app.WithDbAsync(db => db.Notifications.IgnoreQueryFilters().AnyAsync(n => n.UserId == u.UserId && n.EventType == NotificationEvents.AdminAccess)));
+        // "Return to admin": the parked admin refresh cookie restores the administrator's own session.
+        using var end = new HttpRequestMessage(HttpMethod.Post, "/api/auth/impersonation/end");
+        end.Headers.Authorization = new("Bearer", imp.GetProperty("accessToken").GetString());
+        var endRes = await admin.Http.SendAsync(end);
+        Assert.Equal(HttpStatusCode.OK, endRes.StatusCode);
+        var adminToken = (await endRes.Content.ReadFromJsonAsync<JsonElement>()).GetProperty("accessToken").GetString();
+        using var check = new HttpRequestMessage(HttpMethod.Get, "/api/me");
+        check.Headers.Authorization = new("Bearer", adminToken);
+        var back = await (await admin.Http.SendAsync(check)).Content.ReadFromJsonAsync<JsonElement>();
+        Assert.False(back.GetProperty("isImpersonated").GetBoolean());
+        Assert.Equal(admin.UserId, back.GetProperty("id").GetGuid());
     }
 }
 

@@ -15,6 +15,11 @@ public sealed class ExceptionMiddleware(RequestDelegate next, ILogger<ExceptionM
     public async Task InvokeAsync(HttpContext ctx)
     {
         try { await next(ctx); }
+        catch (OperationCanceledException) when (ctx.RequestAborted.IsCancellationRequested)
+        {
+            // Client went away (navigation, closed tab) — not a server error.
+            if (!ctx.Response.HasStarted) ctx.Response.StatusCode = 499;
+        }
         catch (Exception ex) when (!ctx.Response.HasStarted)
         {
             var (status, code, title, errors) = ex switch

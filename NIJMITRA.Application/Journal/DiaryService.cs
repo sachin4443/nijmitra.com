@@ -107,8 +107,9 @@ public sealed partial class DiaryService(IAppDbContext db, IFieldEncryptor enc, 
     }
 
     public async Task<IReadOnlyList<ArchiveBucket>> GetArchiveAsync(CancellationToken ct) =>
-        await db.DiaryEntries.AsNoTracking().GroupBy(e => new { e.EntryDate.Year, e.EntryDate.Month })
-            .Select(g => new ArchiveBucket(g.Key.Year, g.Key.Month, g.Count())).OrderByDescending(b => b.Year).ThenByDescending(b => b.Month).ToListAsync(ct);
+        (await db.DiaryEntries.AsNoTracking().GroupBy(e => new { e.EntryDate.Year, e.EntryDate.Month })
+            .Select(g => new { g.Key.Year, g.Key.Month, Count = g.Count() }).ToListAsync(ct))
+            .Select(b => new ArchiveBucket(b.Year, b.Month, b.Count)).OrderByDescending(b => b.Year).ThenByDescending(b => b.Month).ToList();
 
     public async Task<IReadOnlyList<DateOnly>> GetEntryDatesAsync(int year, int month, CancellationToken ct)
     {

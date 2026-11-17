@@ -126,14 +126,15 @@ if (app.Configuration.GetValue("Database:AutoMigrate", true))
 }
 
 app.UseForwardedHeaders();
-app.UseMiddleware<ExceptionMiddleware>();
-app.UseMiddleware<SecurityHeadersMiddleware>();
 app.UseSerilogRequestLogging(o =>
 {
     // Never log share-link tokens or query strings.
     o.MessageTemplate = "HTTP {RequestMethod} {SafePath} responded {StatusCode} in {Elapsed:0} ms";
     o.EnrichDiagnosticContext = (diag, http) => diag.Set("SafePath", http.Request.Path.StartsWithSegments("/api/public") ? "/api/public/[redacted]" : http.Request.Path.Value);
 });
+// Inside request logging so the logged status is the final (translated) one.
+app.UseMiddleware<ExceptionMiddleware>();
+app.UseMiddleware<SecurityHeadersMiddleware>();
 if (!app.Environment.IsDevelopment() && !app.Environment.IsEnvironment("Testing"))
 {
     app.UseHsts();

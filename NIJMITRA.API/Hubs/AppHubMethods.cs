@@ -21,7 +21,7 @@ public partial class AppHub(AppDbContext db, ChatService chat, ICurrentUser curr
         var wasOnline = p.IsOnline && p.LastHeartbeatAt > Now.AddSeconds(-75);
         p.ConnectionCount = Math.Max(0, p.ConnectionCount) + 1; p.IsOnline = true; p.LastHeartbeatAt = Now; p.LastSeenAt = Now;
         await db.SaveChangesAsync();
-        await chat.MarkAllDeliveredAsync(uid, Context.ConnectionAborted);
+        await chat.MarkAllDeliveredAsync(uid, CancellationToken.None);
         if (!wasOnline) await BroadcastPresenceAsync(uid, true);
         await base.OnConnectedAsync();
     }
@@ -67,7 +67,8 @@ public partial class AppHub(AppDbContext db, ChatService chat, ICurrentUser curr
 
     private async Task BroadcastPresenceAsync(Guid uid, bool online)
     {
-        var friends = await chat.FriendIdsAsync(uid, Context.ConnectionAborted);
+        // Not tied to ConnectionAborted: on disconnect that token is already cancelled.
+        var friends = await chat.FriendIdsAsync(uid, CancellationToken.None);
         if (friends.Count > 0) await Clients.Groups(friends.Select(UserGroup).ToList()).SendAsync("presence", new { userId = uid, isOnline = online, lastSeenAt = Now });
     }
 }

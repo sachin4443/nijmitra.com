@@ -131,7 +131,7 @@ public sealed class ExportService : IExportService
         {
             ws.Cell(1, c + 1).Value = table.Headers[c];
             ws.Cell(1, c + 1).Style.Font.Bold = true;
-            ws.Cell(1, c + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#E8EAFE");
+            ws.Cell(1, c + 1).Style.Fill.BackgroundColor = XLColor.FromHtml("#E3EEFF");
         }
         for (var r = 0; r < table.Rows.Count; r++)
             for (var c = 0; c < table.Rows[r].Count; c++)
@@ -169,12 +169,12 @@ public sealed class ExportService : IExportService
             {
                 col.Item().Row(row =>
                 {
-                    row.RelativeItem().Text("NIJMITRA").FontSize(16).Bold().FontColor("#4F46E5");
+                    row.RelativeItem().Text(t => { t.Span("Nij").FontSize(16).Bold().FontColor("#0B3D91"); t.Span("Mitra").FontSize(16).Bold().FontColor("#F47B20"); });
                     row.RelativeItem().AlignRight().Text($"Generated {DateTime.UtcNow:dd MMM yyyy HH:mm} UTC").FontSize(8).FontColor(Colors.Grey.Darken1);
                 });
                 col.Item().Text(table.Title).FontSize(13).SemiBold();
                 if (!string.IsNullOrEmpty(table.Subtitle)) col.Item().Text(table.Subtitle).FontColor(Colors.Grey.Darken2);
-                col.Item().PaddingVertical(6).LineHorizontal(1).LineColor("#C7D2FE");
+                col.Item().PaddingVertical(6).LineHorizontal(1).LineColor("#F47B20");
             });
             page.Content().Table(t =>
             {
@@ -182,7 +182,7 @@ public sealed class ExportService : IExportService
                 t.Header(h =>
                 {
                     foreach (var head in table.Headers)
-                        h.Cell().Background("#EEF2FF").Padding(4).Text(head).SemiBold();
+                        h.Cell().Background("#E3EEFF").Padding(4).Text(head).SemiBold();
                 });
                 var i = 0;
                 foreach (var row in table.Rows)

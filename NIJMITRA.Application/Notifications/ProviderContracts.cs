@@ -46,13 +46,13 @@ public static class ProviderCatalog
             new("username", "Username", "text"),
             new("password", "Password", "password", Secret: true),
             new("senderEmail", "Sender Email", "email", true),
-            new("senderName", "Sender Name", "text", Default: "NIJMITRA"),
+            new("senderName", "Sender Name", "text", Default: "NijMitra"),
         ]),
         new(ProviderType.SendGrid, NotificationChannel.Email, "SendGrid", "Twilio SendGrid Web API v3.",
         [
             new("apiKey", "API Key", "password", true, Secret: true),
             new("senderEmail", "Sender Email (verified in SendGrid)", "email", true),
-            new("senderName", "Sender Name", "text", Default: "NIJMITRA"),
+            new("senderName", "Sender Name", "text", Default: "NijMitra"),
         ]),
         new(ProviderType.AmazonSes, NotificationChannel.Email, "Amazon SES", "Amazon Simple Email Service (API v2).",
         [
@@ -60,7 +60,7 @@ public static class ProviderCatalog
             new("accessKeyId", "Access Key ID", "text", true),
             new("secretAccessKey", "Secret Access Key", "password", true, Secret: true),
             new("senderEmail", "Sender Email (verified identity)", "email", true),
-            new("senderName", "Sender Name", "text", Default: "NIJMITRA"),
+            new("senderName", "Sender Name", "text", Default: "NijMitra"),
         ]),
         new(ProviderType.TwoFactorIn, NotificationChannel.Sms, "2Factor.in", "Indian SMS gateway. OTP messages use the OTP API with your DLT-approved template; other messages use the transactional SMS API.",
         [

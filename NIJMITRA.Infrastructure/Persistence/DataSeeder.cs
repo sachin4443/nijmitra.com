@@ -95,15 +95,15 @@ public static class DataSeeder
         NotificationTemplate Pu(string evt, string title, string body) => new() { EventType = evt, Channel = NotificationChannel.Push, Subject = title, Body = body, UpdatedAt = now };
 
         yield return E(NotificationEvents.RegistrationOtp, "{{OTP}} is your {{ApplicationName}} verification code",
-            "<p>Hello,</p><p>Your {{ApplicationName}} verification code is:</p><p style=\"font-size:28px;font-weight:700;letter-spacing:6px;color:#4F46E5\">{{OTP}}</p><p>This code expires in {{ExpiryMinutes}} minutes. Never share it with anyone.</p>");
+            "<p>Hello,</p><p>Your {{ApplicationName}} verification code is:</p><p style=\"font-size:28px;font-weight:700;letter-spacing:6px;color:#0B3D91\">{{OTP}}</p><p>This code expires in {{ExpiryMinutes}} minutes. Never share it with anyone.</p>");
         yield return S(NotificationEvents.RegistrationOtp, "{{OTP}} is your {{ApplicationName}} verification code. Valid for {{ExpiryMinutes}} minutes. Do not share it with anyone.");
         yield return E(NotificationEvents.EmailVerification, "Verify your email for {{ApplicationName}}",
-            "<p>Hello {{UserName}},</p><p>Use this code to verify your email address:</p><p style=\"font-size:28px;font-weight:700;letter-spacing:6px;color:#4F46E5\">{{OTP}}</p><p>The code expires in {{ExpiryMinutes}} minutes.</p>");
+            "<p>Hello {{UserName}},</p><p>Use this code to verify your email address:</p><p style=\"font-size:28px;font-weight:700;letter-spacing:6px;color:#0B3D91\">{{OTP}}</p><p>The code expires in {{ExpiryMinutes}} minutes.</p>");
         yield return E(NotificationEvents.PasswordReset, "Reset your {{ApplicationName}} password",
-            "<p>Hello {{UserName}},</p><p>We received a request to reset your password. Your code is:</p><p style=\"font-size:28px;font-weight:700;letter-spacing:6px;color:#4F46E5\">{{OTP}}</p><p>If you did not request this, you can ignore this email — your password will not change.</p>");
+            "<p>Hello {{UserName}},</p><p>We received a request to reset your password. Your code is:</p><p style=\"font-size:28px;font-weight:700;letter-spacing:6px;color:#0B3D91\">{{OTP}}</p><p>If you did not request this, you can ignore this email — your password will not change.</p>");
         yield return S(NotificationEvents.PasswordReset, "{{OTP}} is your {{ApplicationName}} password reset code. Valid for {{ExpiryMinutes}} minutes. Do not share it.");
         yield return E(NotificationEvents.Welcome, "Welcome to {{ApplicationName}}",
-            "<p>Hello {{UserName}},</p><p>Welcome to <b>{{ApplicationName}}</b> — your personal digital companion for money, documents, passwords, contacts, diary and more.</p><p>For extra protection, enable two-step verification from <b>Settings → Security</b>.</p><p><a href=\"{{Link}}\" style=\"background:#4F46E5;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none\">Open {{ApplicationName}}</a></p>");
+            "<p>Hello {{UserName}},</p><p>Welcome to <b>{{ApplicationName}}</b> — your personal digital companion for money, documents, passwords, contacts, diary and more.</p><p>For extra protection, enable two-step verification from <b>Settings → Security</b>.</p><p><a href=\"{{Link}}\" style=\"background:#F47B20;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none\">Open {{ApplicationName}}</a></p>");
         yield return E(NotificationEvents.LoginAlert, "New sign-in to your {{ApplicationName}} account",
             "<p>Hello {{UserName}},</p><p>Your account was just signed in to.</p><ul><li>Browser: {{Browser}}</li><li>IP address: {{IpAddress}}</li><li>Time: {{EventDate}} {{EventTime}}</li></ul><p>If this wasn't you, change your password immediately and sign out other devices from Settings → Security.</p>");
         yield return Pu(NotificationEvents.LoginAlert, "New sign-in", "{{Body}}");

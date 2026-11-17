@@ -24,7 +24,7 @@ public sealed class WebPushProvider : IChannelProvider
         var vapid = new VapidDetails(c.Require("subject"), c.Require("publicKey"), c.Require("privateKey"));
         var payload = JsonSerializer.Serialize(new
         {
-            title = m.Subject ?? "NIJMITRA",
+            title = m.Subject ?? "NijMitra",
             body = m.Body,
             url = m.Variables.TryGetValue("Link", out var l) ? l : "/",
             tag = m.EventType,

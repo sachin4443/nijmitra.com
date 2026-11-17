@@ -35,9 +35,9 @@ public sealed class SmtpEmailProvider : IChannelProvider
     public async Task SendAsync(ProviderContext c, OutboundMessage m, CancellationToken ct)
     {
         var msg = new MimeMessage();
-        msg.From.Add(new MailboxAddress(c.Get("senderName") ?? "NIJMITRA", c.Require("senderEmail")));
+        msg.From.Add(new MailboxAddress(c.Get("senderName") ?? "NijMitra", c.Require("senderEmail")));
         msg.To.Add(MailboxAddress.Parse(m.Recipient));
-        msg.Subject = m.Subject ?? "NIJMITRA";
+        msg.Subject = m.Subject ?? "NijMitra";
         msg.Body = new BodyBuilder { HtmlBody = m.Body }.ToMessageBody();
         try
         {
@@ -79,8 +79,8 @@ public sealed class SendGridEmailProvider(IHttpClientFactory http) : IChannelPro
         var payload = new
         {
             personalizations = new[] { new { to = new[] { new { email = m.Recipient } } } },
-            from = new { email = c.Require("senderEmail"), name = c.Get("senderName") ?? "NIJMITRA" },
-            subject = m.Subject ?? "NIJMITRA",
+            from = new { email = c.Require("senderEmail"), name = c.Get("senderName") ?? "NijMitra" },
+            subject = m.Subject ?? "NijMitra",
             content = new[] { new { type = "text/html", value = m.Body } }
         };
         var res = await Client(c).PostAsJsonAsync("https://api.sendgrid.com/v3/mail/send", payload, ct);
@@ -115,13 +115,13 @@ public sealed class AmazonSesEmailProvider : IChannelProvider
         {
             await client.SendEmailAsync(new SendEmailRequest
             {
-                FromEmailAddress = $"{c.Get("senderName") ?? "NIJMITRA"} <{c.Require("senderEmail")}>",
+                FromEmailAddress = $"{c.Get("senderName") ?? "NijMitra"} <{c.Require("senderEmail")}>",
                 Destination = new Destination { ToAddresses = [m.Recipient] },
                 Content = new EmailContent
                 {
                     Simple = new Message
                     {
-                        Subject = new Content { Data = m.Subject ?? "NIJMITRA", Charset = "UTF-8" },
+                        Subject = new Content { Data = m.Subject ?? "NijMitra", Charset = "UTF-8" },
                         Body = new Body { Html = new Content { Data = m.Body, Charset = "UTF-8" } }
                     }
                 }
