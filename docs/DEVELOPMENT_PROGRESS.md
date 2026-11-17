@@ -6,18 +6,18 @@ Status legend: ✅ implemented & tested · 🟡 implemented, needs external cred
 |---|---|---|
 | 1 | Repository inspection, architecture, ERD, roadmap | ✅ |
 | 2 | Clean Architecture solution, EF Core + PostgreSQL, migrations, Swagger, Serilog, global exception handling | ✅ |
-| 3 | Branding, theme, login/registration, responsive layout, dashboard | ⏳ |
-| 4 | Authentication & security (registration, optional OTP, PIN, TOTP 2FA, refresh rotation, idle timeout, audit) | ✅ backend · ⏳ UI |
-| 5 | Personal finance | ✅ backend · ⏳ UI |
-| 6 | Document vault & password manager | ✅ backend · ⏳ UI |
-| 7 | Custom tables & product register | ✅ backend · ⏳ UI |
-| 8 | Contacts & Udhar | ✅ backend · ⏳ UI |
-| 9 | Diary & calendar | ✅ backend · ⏳ UI |
-| 10 | Communication center | ✅ backend · ⏳ UI |
-| 11 | Friends & chat | ✅ backend · ⏳ UI |
-| 12 | PWA | ⬜ |
-| 13 | Admin panel | ✅ backend · ⏳ UI |
-| 14 | Testing & production readiness | ⬜ |
+| 3 | Branding (official NijMitra logo set), theme switcher, landing, login/registration, responsive layout, dashboard | ✅ |
+| 4 | Authentication & security (registration, conditional OTP, PIN, optional TOTP 2FA, refresh rotation, idle timeout, audit) | ✅ |
+| 5 | Personal finance | ✅ |
+| 6 | Document vault & zero-knowledge password manager | ✅ |
+| 7 | Custom tables & product register | ✅ |
+| 8 | Contacts & Udhar | ✅ |
+| 9 | Diary & calendar & reminders | ✅ |
+| 10 | Communication center | ✅ · 🟡 live delivery needs your provider credentials |
+| 11 | Friends & chat | ✅ |
+| 12 | PWA | ✅ (install/push verified in Chromium; iOS/Android device testing pending) |
+| 13 | Admin panel | ✅ |
+| 14 | Testing & production readiness | ✅ build/tests/e2e · ⏳ deployment to nijmitra.com by owner |
 
 ## Log
 
@@ -49,3 +49,13 @@ Status legend: ✅ implemented & tested · 🟡 implemented, needs external cred
   communication center (providers, policies, templates, logs, announcements).
 * Background jobs: notification dispatcher, reminders, presence sweep, disappearing messages, idle-session closer, retention & account purge.
 * **Tests: 53 passing** (unit + integration against PostgreSQL) covering all 17 critical security scenarios.
+
+### Phase 3, 12, 13 (frontend) & 14
+* React 19 + TypeScript + Vite PWA with all 14 menu sections, admin portal, light/dark/system theme switcher, idle-timeout warning.
+* Official NijMitra artwork processed into transparent logos (light/dark), vector favicon, PWA/Apple icons and OG image; portal re-themed to the logo palette (navy #0B3D91, orange #F47B20, green #3AAA35).
+* Public landing page (Hindi + English) with features, security, platforms and Login/Register.
+* Browser end-to-end runs (Playwright): registration, login, every module page, forms (expense, vault setup + credentials, custom table builder + records, Udhar partial payment, diary editor), chat between two users, admin pages, impersonation round-trip, mobile viewport, single-site production build under strict CSP — no console or server errors.
+* Bugs found and fixed through E2E: impersonation cookie scope, diary archive & dashboard query translation, hub disconnect cancellation, expense form category race, sign-out redirect.
+* Tests: **53 .NET tests** (unit + integration, all 17 critical scenarios) and **3 Vitest** crypto tests — all passing.
+* Deployment kit: IIS web.config (single-site and split), publish/backup/restore/secret-generation scripts; full docs set.
+* Client user guide PDF (no code) in `docs/NijMitra-User-Guide.pdf` and served at `/help/NijMitra-User-Guide.pdf`.

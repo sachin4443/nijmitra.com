@@ -1,0 +1,12 @@
+# NijMitra — production environment variables (set as SYSTEM environment variables on the server).
+# This file is an EXAMPLE ONLY. Never commit real values.
+ASPNETCORE_ENVIRONMENT=Production
+NIJMITRA_ConnectionStrings__DefaultConnection=Host=YOUR_DB_HOST;Port=5432;Database=nijmitraapp;Username=nijmitra_app;Password=CHANGE_ME;SSL Mode=Prefer
+NIJMITRA_Jwt__SigningKey=GENERATE_WITH_generate-secrets.ps1
+NIJMITRA_Security__DataEncryptionKey=GENERATE_WITH_generate-secrets.ps1
+NIJMITRA_App__PublicBaseUrl=https://nijmitra.com
+NIJMITRA_App__BootstrapSuperAdminMobiles__0=+91XXXXXXXXXX
+NIJMITRA_Storage__RootPath=D:\NijMitraData\storage
+# Optional malware scanning (ClamAV daemon):
+# NIJMITRA_Storage__MalwareScanner=clamav
+# NIJMITRA_Storage__ClamAvHost=127.0.0.1
