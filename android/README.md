@@ -7,7 +7,8 @@ fix and security update on the website is in the app immediately — no new app 
 
 | | |
 |---|---|
-| Package name | `com.nijmitra.app` |
+| Package name | `com.nijmitra.app` (permanent — cannot be changed after the first upload) |
+| Opens | `https://nijmitra.com/login` (signed-in users go straight to their dashboard) |
 | Version | 1.0.0 (versionCode 1) |
 | Min / target SDK | Android 7.0 (24) / Android 16 (36) |
 | Permissions | `INTERNET`, `POST_NOTIFICATIONS` (Android 13+, only when the user enables alerts) |
@@ -65,14 +66,16 @@ The website itself is updated by deploying the web app — the Android app does 
 ## 3. Publishing checklist (Google Play Console)
 
 1. Create the app: name **NijMitra**, default language English (India), App, Free.
-2. **Store listing** — texts in [`play-store/LISTING.md`](play-store/LISTING.md); graphics in `play-store/`:
-   `icon-512.png`, `feature-graphic-1024x500.png`, `screenshots/*.png` (1080×2160).
+2. **Store listing** — texts and the *what-to-upload-where* table are in [`play-store/LISTING.md`](play-store/LISTING.md); graphics in `play-store/`
+   (icon, feature graphic, phone screenshots with headings in English and Hindi, plain phone screenshots, 7" and 10" tablet screenshots).
 3. **App content**
    - Privacy policy: `https://nijmitra.com/privacy.html`
    - Data safety: answers in [`play-store/LISTING.md`](play-store/LISTING.md#data-safety-form)
    - Account deletion URL: `https://nijmitra.com/delete-account.html`
    - Ads: **No ads**. Target audience: 18+. Content rating questionnaire: Utility/Productivity, user-to-user chat = **Yes** (friends only, report & block available).
    - App access: provide a test account (mobile number + password) for the reviewer.
+   - Financial features declaration: the app offers **personal finance tracking / budgeting only** — no loans, payments, banking, crypto or investment services.
+   - Government apps: **No**. Health: **No**. News: **No**.
 4. Upload `app-release.aab` to **Internal testing** first, install from the Play link on a phone, check that
    the app opens without a URL bar (if a bar shows, step 1.2 is missing), then promote to Production.
 5. New personal developer accounts must run a **closed test with at least 12 testers for 14 days**

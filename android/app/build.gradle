@@ -8,7 +8,7 @@ plugins {
 // ---------------------------------------------------------------------------------------------
 def twa = [
     host            : 'nijmitra.com',
-    startUrl        : '/?source=android',
+    startUrl        : '/login?source=android',
     themeColor      : '#0B3D91',
     themeColorDark  : '#0B1E44',
     navColor        : '#FFFFFF',
