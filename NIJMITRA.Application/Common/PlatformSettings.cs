@@ -66,7 +66,11 @@ public class WebsiteSettings
     /// <summary>Android app package (Trusted Web Activity) published in /.well-known/assetlinks.json.</summary>
     public string AndroidPackageName { get; set; } = "com.nijmitra.app";
     /// <summary>SHA-256 certificate fingerprints allowed to open the site full-screen: the upload key and the Google Play app-signing key.</summary>
-    public List<string> AndroidSha256Fingerprints { get; set; } = ["65:C6:D0:1B:C0:55:B3:54:D0:C3:67:9C:3E:A5:2D:99:18:07:19:A3:2B:0F:71:8E:C6:03:25:6C:58:C0:7C:3A"];
+    public List<string> AndroidSha256Fingerprints { get; set; } =
+    [
+        "90:12:45:51:45:02:89:63:BC:6E:95:4D:F7:7C:4C:CC:0E:7A:37:32:94:80:33:B4:FE:7F:8F:DD:9B:EC:F0:7C", // Google Play app-signing key
+        "65:C6:D0:1B:C0:55:B3:54:D0:C3:67:9C:3E:A5:2D:99:18:07:19:A3:2B:0F:71:8E:C6:03:25:6C:58:C0:7C:3A", // upload key (direct APK installs)
+    ];
 }
 
 public class FooterColumn
