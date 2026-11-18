@@ -1,10 +1,25 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import { cpSync } from 'node:fs'
+import { resolve } from 'node:path'
+
+/** Publishes pdf.js character maps and standard fonts (used by the in-app PDF viewer) at /pdfjs/ in the build output. */
+const pdfjsAssets = () => {
+  let outDir = 'dist'
+  return {
+    name: 'nijmitra-pdfjs-assets',
+    configResolved(c: { build: { outDir: string }; root: string }) { outDir = resolve(c.root, c.build.outDir) },
+    closeBundle() {
+      for (const d of ['cmaps', 'standard_fonts']) cpSync(resolve(__dirname, 'node_modules/pdfjs-dist', d), resolve(outDir, 'pdfjs', d), { recursive: true })
+    },
+  }
+}
 
 export default defineConfig({
   plugins: [
     react(),
+    pdfjsAssets(),
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',

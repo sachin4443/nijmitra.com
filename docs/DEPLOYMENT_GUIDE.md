@@ -69,6 +69,9 @@ Developers create new migrations with `dotnet ef migrations add <Name> -p NIJMIT
 * Landing page loads; register; sign in; Admin → Dashboard shows *System health: Healthy*.
 * Admin → Communication Center: configure email/SMS/push and send tests.
 
+* `https://nijmitra.com/.well-known/assetlinks.json` returns the Android app fingerprints (needed by the Play Store app).
+* `https://nijmitra.com/privacy.html` and `/delete-account.html` load (both are linked from the Play Store listing).
+
 ## 8. Backup & restore
 * `deployment/scripts/backup-database.ps1` (Windows Task Scheduler, daily 02:30) → `pg_dump` custom-format dump + ZIP of `App_Data` (files, encrypted DB-connection file); keeps 30 days. Linux: `backup-database.sh`.
 * Store backups off-server, and store the **data-encryption key** separately (password manager / vault).

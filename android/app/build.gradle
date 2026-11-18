@@ -1,0 +1,78 @@
+plugins {
+    id 'com.android.application'
+}
+
+// ---------------------------------------------------------------------------------------------
+// App configuration. The app opens the NijMitra website as a Trusted Web Activity (full screen,
+// no browser bar) once https://<host>/.well-known/assetlinks.json lists this app's signing key.
+// ---------------------------------------------------------------------------------------------
+def twa = [
+    host            : 'nijmitra.com',
+    startUrl        : '/?source=android',
+    themeColor      : '#0B3D91',
+    themeColorDark  : '#0B1E44',
+    navColor        : '#FFFFFF',
+    navColorDark    : '#0B1E44',
+    backgroundColor : '#FFFFFF',
+]
+
+// Release signing comes from keystore.properties (never committed) or environment variables.
+def ksProps = new Properties()
+def ksFile = rootProject.file('keystore.properties')
+if (ksFile.exists()) ksFile.withInputStream { ksProps.load(it) }
+def sign = { String key, String env -> ksProps.getProperty(key) ?: System.getenv(env) }
+
+android {
+    namespace 'com.nijmitra.app'
+    compileSdk 36
+
+    defaultConfig {
+        applicationId 'com.nijmitra.app'
+        minSdk 24
+        targetSdk 36
+        versionCode 1
+        versionName '1.0.0'
+
+        resValue 'string', 'hostName', twa.host
+        resValue 'string', 'launchUrl', "https://${twa.host}${twa.startUrl}"
+        resValue 'color', 'colorPrimary', twa.themeColor
+        resValue 'color', 'colorPrimaryDark', twa.themeColorDark
+        resValue 'color', 'navigationColor', twa.navColor
+        resValue 'color', 'navigationColorDark', twa.navColorDark
+        resValue 'color', 'backgroundColor', twa.backgroundColor
+        resValue 'string', 'providerAuthority', 'com.nijmitra.app.fileprovider'
+        resValue 'string', 'assetStatements', """[{ "relation": ["delegate_permission/common.handle_all_urls"], "target": { "namespace": "web", "site": "https://${twa.host}" } }]"""
+    }
+
+    signingConfigs {
+        release {
+            def store = sign('storeFile', 'NIJMITRA_KEYSTORE')
+            if (store) {
+                storeFile rootProject.file(store)
+                storePassword sign('storePassword', 'NIJMITRA_KEYSTORE_PASSWORD')
+                keyAlias sign('keyAlias', 'NIJMITRA_KEY_ALIAS')
+                keyPassword sign('keyPassword', 'NIJMITRA_KEY_PASSWORD')
+            }
+        }
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            if (signingConfigs.release.storeFile) signingConfig signingConfigs.release
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    buildFeatures { resValues true }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.4'
+}

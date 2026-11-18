@@ -6,6 +6,16 @@ import { useAuth } from './AuthContext'
 type Handler = (payload: never) => void
 interface Ctx { connected: boolean; on: (event: string, h: Handler) => () => void; invoke: (method: string, ...args: unknown[]) => Promise<void> }
 const RtCtx = createContext<Ctx>({ connected: false, on: () => () => {}, invoke: async () => {} })
+/** Session id ("sid" claim) of this browser's access token. */
+function currentSessionId(): string | null {
+  try {
+    const t = getAccessToken()
+    if (!t) return null
+    const json = atob(t.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))
+    return (JSON.parse(json) as { sid?: string }).sid ?? null
+  } catch { return null }
+}
+
 const EVENTS = ['notification', 'message', 'messageDeleted', 'messageExpired', 'typing', 'read', 'delivered', 'presence', 'friendRequest', 'friendAccepted', 'conversationUpdated', 'sessionEnded']
 
 /** One SignalR connection per signed-in user: notifications, chat, typing, presence. Heartbeat every 25 s. */
@@ -24,7 +34,8 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
       .build()
     conn.current = c
     EVENTS.forEach((evt) => c.on(evt, (payload) => handlers.current.get(evt)?.forEach((h) => (h as (p: unknown) => void)(payload))))
-    c.on('sessionEnded', () => void logout('idle'))
+    // The server tells all of a user's devices when *a* session ends (e.g. a phone left idle); only sign out if it is this one.
+    c.on('sessionEnded', (p: { sessionId?: string }) => { if (!p?.sessionId || p.sessionId === currentSessionId()) void logout('idle') })
     c.onreconnected(() => setConnected(true))
     c.onreconnecting(() => setConnected(false))
     c.onclose(() => setConnected(false))

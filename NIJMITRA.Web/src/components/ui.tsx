@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { Suspense, createContext, lazy, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Badge, Button, Dropdown, Form, Modal, Pagination as BsPagination, Spinner } from 'react-bootstrap'
 import { FiDownload, FiFile, FiFileText, FiImage, FiInbox, FiPaperclip, FiTrash2, FiUploadCloud } from 'react-icons/fi'
 import { Link } from 'react-router-dom'
@@ -193,29 +193,44 @@ export function AttachmentList({ files, urlFor, onRemove, onPreview }: { files: 
 }
 
 /** Previews PDFs, images, audio, video and text inline (loaded via authenticated blob URL). */
+const PdfViewer = lazy(() => import('./FileViewer').then((m) => ({ default: m.PdfViewer })))
+const OfficeViewer = lazy(() => import('./FileViewer').then((m) => ({ default: m.OfficeViewer })))
+const OFFICE = /(spreadsheetml|wordprocessingml|text\/csv|application\/csv)/
+
+/** Opens a file inside the app: PDFs page by page, images (tap to zoom), audio/video, text, and Excel/CSV/Word as a readable preview. */
 export function PreviewModal({ url, name, contentType, onHide }: { url: string | null; name?: string; contentType?: string; onHide: () => void }) {
   const [src, setSrc] = useState<string | null>(null)
   const [text, setText] = useState<string | null>(null)
+  const [zoomed, setZoomed] = useState(false)
+  const type = contentType ?? ''
+  const isPdf = type === 'application/pdf'
+  const isOffice = OFFICE.test(type) || /\.(xlsx|csv|docx)$/i.test(name ?? '')
+  const isMedia = /^(image|audio|video)\//.test(type)
+  const isText = type.startsWith('text/') && !isOffice
   useEffect(() => {
     let created: string | null = null
-    setSrc(null); setText(null)
+    setSrc(null); setText(null); setZoomed(false)
     if (!url) return
-    if (contentType?.startsWith('text/')) api.get(url, { responseType: 'text' }).then((r) => setText(String(r.data))).catch(() => setText('Unable to load preview.'))
-    else blobUrl(url).then((u) => { created = u; setSrc(u) }).catch(() => setText('Unable to load preview.'))
+    if (isText) api.get(url, { responseType: 'text' }).then((r) => setText(String(r.data))).catch(() => setText('Unable to load preview.'))
+    else if (isMedia) blobUrl(url).then((u) => { created = u; setSrc(u) }).catch(() => setText('Unable to load preview.'))
     return () => { if (created) URL.revokeObjectURL(created) }
-  }, [url, contentType])
-  const canPreview = contentType && (contentType === 'application/pdf' || /^(image|audio|video|text)\//.test(contentType))
+  }, [url, isText, isMedia])
+  const download = url ? url.replace(/([?&])inline=true&?/, '$1').replace(/[?&]$/, '') : null
+  const canPreview = isPdf || isOffice || isMedia || isText
   return (
-    <Modal show={!!url} onHide={onHide} size="xl" centered>
-      <Modal.Header closeButton><Modal.Title className="h6 truncate">{name}</Modal.Title></Modal.Header>
-      <Modal.Body className="p-0" style={{ minHeight: 300 }}>
-        {!canPreview && <EmptyState icon={<FiFile />} title="Preview not available" text="Download the file to open it in its app (Word, Excel…)." action={url ? <Button onClick={() => void downloadFile(url, name)}><FiDownload /> Download</Button> : undefined} />}
-        {canPreview && !src && text === null && <Loading />}
-        {text !== null && <pre className="p-3 mb-0" style={{ whiteSpace: 'pre-wrap', maxHeight: '75vh' }}>{text}</pre>}
-        {src && contentType === 'application/pdf' && <iframe title={name} src={src} style={{ width: '100%', height: '78vh', border: 0 }} />}
-        {src && contentType?.startsWith('image/') && <img src={src} alt={name} style={{ maxWidth: '100%', maxHeight: '78vh', display: 'block', margin: '0 auto' }} />}
-        {src && contentType?.startsWith('audio/') && <div className="p-4"><audio src={src} controls className="w-100" /></div>}
-        {src && contentType?.startsWith('video/') && <video src={src} controls style={{ width: '100%', maxHeight: '78vh' }} />}
+    <Modal show={!!url} onHide={onHide} size="xl" centered fullscreen="md-down" className="preview-modal">
+      <Modal.Header closeButton>
+        <Modal.Title className="h6 truncate flex-grow-1">{name}</Modal.Title>
+        {download && <Button size="sm" variant="outline-primary" className="me-2 ms-2 flex-shrink-0" onClick={() => void downloadFile(download, name)}><FiDownload /> <span className="d-none d-sm-inline">Download</span></Button>}
+      </Modal.Header>
+      <Modal.Body className="p-0 preview-body">
+        {!canPreview && url && <EmptyState icon={<FiFile />} title="Preview not available for this file type" text="Older .doc / .xls files and other formats can be opened after downloading." action={<Button onClick={() => void downloadFile(download ?? url, name)}><FiDownload /> Download</Button>} />}
+        {url && (isPdf || isOffice) && <Suspense fallback={<Loading />}>{isPdf ? <PdfViewer url={url} /> : <OfficeViewer url={url} />}</Suspense>}
+        {isMedia && !src && text === null && <Loading />}
+        {text !== null && <pre className="p-3 mb-0" style={{ whiteSpace: 'pre-wrap' }}>{text}</pre>}
+        {src && type.startsWith('image/') && <div className={`image-view ${zoomed ? 'zoomed' : ''}`} onClick={() => setZoomed(!zoomed)} title={zoomed ? 'Click to fit' : 'Click to zoom'}><img src={src} alt={name} /></div>}
+        {src && type.startsWith('audio/') && <div className="p-4"><audio src={src} controls className="w-100" /></div>}
+        {src && type.startsWith('video/') && <video src={src} controls playsInline style={{ width: '100%', maxHeight: '80vh', display: 'block' }} />}
       </Modal.Body>
     </Modal>
   )

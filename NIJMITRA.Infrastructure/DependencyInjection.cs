@@ -31,6 +31,7 @@ public static class DependencyInjection
         services.AddSingleton<IUserAgentParser, UserAgentParserService>();
         services.AddSingleton<IHtmlSanitizerService, HtmlSanitizerService>();
         services.AddSingleton<IExportService, ExportService>();
+        services.AddSingleton<IOfficePreviewService, OfficePreviewService>();
         services.AddSingleton<IFileStorage, LocalFileStorage>();
         if (string.Equals(config["Storage:MalwareScanner"], "clamav", StringComparison.OrdinalIgnoreCase))
             services.AddSingleton<IMalwareScanner, ClamAvMalwareScanner>();

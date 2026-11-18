@@ -93,17 +93,19 @@ export default function DocumentsPage() {
               <Table responsive hover className="mb-0 align-middle">
                 <thead><tr><th>Name</th><th>Category</th><th className="d-none d-md-table-cell">Folder</th><th className="d-none d-md-table-cell">Size</th><th>Updated</th><th /></tr></thead>
                 <tbody>{docs.data?.items.map((d) => (
-                  <tr key={d.id}>
-                    <td className="clickable" onClick={() => setPreview(d)}><div className="d-flex align-items-center gap-2"><span className="text-primary fs-5">{fileIcon(d.contentType)}</span><div className="min-w-0"><div className="fw-medium truncate">{d.name}</div>
+                  <tr key={d.id} className="doc-row" onClick={() => setPreview(d)} title="Open">
+                    <td><div className="d-flex align-items-center gap-2"><span className="text-primary fs-5">{fileIcon(d.contentType)}</span><div className="min-w-0"><div className="fw-medium truncate">{d.name}</div>
                       <div className="small text-muted">{d.extension.toUpperCase().slice(1)}{d.versionCount > 1 && ` · v${d.versionCount}`} {d.tags.map((t) => <span key={t} className="tag">#{t}</span>)}</div></div></div></td>
                     <td><Badge bg="" className="badge-soft">{d.category}</Badge></td>
                     <td className="small d-none d-md-table-cell">{d.folderName ?? '—'}</td>
                     <td className="small d-none d-md-table-cell">{bytes(d.sizeBytes)}</td>
                     <td className="small">{relative(d.updatedAt)}</td>
-                    <td className="text-end">
-                      <Dropdown align="end"><Dropdown.Toggle variant="link" size="sm" className="no-caret text-body"><FiMoreVertical /></Dropdown.Toggle>
+                    <td className="text-end text-nowrap" onClick={(e) => e.stopPropagation()}>
+                      <Button size="sm" variant="link" className="text-body p-1" title="View" aria-label="View" onClick={() => setPreview(d)}><FiEye /></Button>
+                      <Button size="sm" variant="link" className="text-body p-1 d-none d-sm-inline-block" title="Download" aria-label="Download" onClick={() => void downloadFile(`/api/documents/${d.id}/download`, d.name)}><FiDownload /></Button>
+                      <Dropdown align="end" className="d-inline-block"><Dropdown.Toggle variant="link" size="sm" className="no-caret text-body"><FiMoreVertical /></Dropdown.Toggle>
                         <Dropdown.Menu>
-                          <Dropdown.Item onClick={() => setPreview(d)}><FiEye className="me-2" />Preview</Dropdown.Item>
+                          <Dropdown.Item onClick={() => setPreview(d)}><FiEye className="me-2" />Open / view</Dropdown.Item>
                           <Dropdown.Item onClick={() => void downloadFile(`/api/documents/${d.id}/download`, d.name)}><FiDownload className="me-2" />Download</Dropdown.Item>
                           <Dropdown.Item onClick={() => setEdit(d)}><FiEdit2 className="me-2" />Rename / edit / move</Dropdown.Item>
                           <Dropdown.Item onClick={() => setVersions(d)}><FiClock className="me-2" />Versions ({d.versionCount})</Dropdown.Item>

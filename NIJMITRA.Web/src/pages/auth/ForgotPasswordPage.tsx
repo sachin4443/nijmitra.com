@@ -3,9 +3,11 @@ import { Alert, Button, Form, Spinner } from 'react-bootstrap'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, apiError } from '../../lib/api'
 import AuthShell from './AuthShell'
+import { useI18n } from '../../lib/i18n'
 
 export default function ForgotPasswordPage() {
   const nav = useNavigate()
+  const { t } = useI18n()
   const [mobile, setMobile] = useState('')
   const [sent, setSent] = useState(false)
   const [otp, setOtp] = useState('')
@@ -28,24 +30,24 @@ export default function ForgotPasswordPage() {
 
   return (
     <AuthShell>
-      <h2 className="fw-bold mb-1">Reset password</h2>
-      <p className="text-muted mb-4">We'll send a verification code to your registered mobile number or email.</p>
+      <h2 className="fw-bold mb-1">{t('fp.title')}</h2>
+      <p className="text-muted mb-4">{t('fp.sub')}</p>
       {err && <Alert variant="danger" className="py-2 small">{err}</Alert>}
       {msg && <Alert variant="success" className="py-2 small">{msg}</Alert>}
       {!sent ? (
         <Form onSubmit={request}>
-          <Form.Group className="mb-3"><Form.Label>Mobile number</Form.Label><Form.Control type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} required /></Form.Group>
-          <Button type="submit" className="w-100 btn-gradient" disabled={busy || mobile.length < 10}>{busy ? <Spinner size="sm" /> : 'Send code'}</Button>
+          <Form.Group className="mb-3"><Form.Label>{t('fp.mobile')}</Form.Label><Form.Control type="tel" value={mobile} onChange={(e) => setMobile(e.target.value)} required /></Form.Group>
+          <Button type="submit" className="w-100 btn-gradient" disabled={busy || mobile.length < 10}>{busy ? <Spinner size="sm" /> : t('fp.send')}</Button>
         </Form>
       ) : (
         <Form onSubmit={confirm}>
-          <Form.Group className="mb-3"><Form.Label>Verification code</Form.Label><Form.Control inputMode="numeric" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value)} required /></Form.Group>
-          <Form.Group className="mb-3"><Form.Label>New password</Form.Label><Form.Control type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} required /></Form.Group>
-          <Form.Group className="mb-3"><Form.Label>Confirm new password</Form.Label><Form.Control type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} required /></Form.Group>
-          <Button type="submit" className="w-100 btn-gradient" disabled={busy}>{busy ? <Spinner size="sm" /> : 'Set new password'}</Button>
+          <Form.Group className="mb-3"><Form.Label>{t('fp.code')}</Form.Label><Form.Control inputMode="numeric" maxLength={6} value={otp} onChange={(e) => setOtp(e.target.value)} required /></Form.Group>
+          <Form.Group className="mb-3"><Form.Label>{t('fp.new')}</Form.Label><Form.Control type="password" autoComplete="new-password" value={pw} onChange={(e) => setPw(e.target.value)} required /></Form.Group>
+          <Form.Group className="mb-3"><Form.Label>{t('fp.confirm')}</Form.Label><Form.Control type="password" autoComplete="new-password" value={pw2} onChange={(e) => setPw2(e.target.value)} required /></Form.Group>
+          <Button type="submit" className="w-100 btn-gradient" disabled={busy}>{busy ? <Spinner size="sm" /> : t('fp.submit')}</Button>
         </Form>
       )}
-      <p className="text-center mt-4 mb-0 small"><Link to="/login">Back to sign in</Link></p>
+      <p className="text-center mt-4 mb-0 small"><Link to="/login">{t('fp.back')}</Link></p>
     </AuthShell>
   )
 }

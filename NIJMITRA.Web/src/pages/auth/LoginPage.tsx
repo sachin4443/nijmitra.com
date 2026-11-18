@@ -7,23 +7,21 @@ import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { z } from 'zod'
 import { api, apiError, deviceKey } from '../../lib/api'
 import { useAuth } from '../../contexts/AuthContext'
+import { useI18n, type TKey } from '../../lib/i18n'
 import AuthShell from './AuthShell'
 import { RecoveryCodes, TotpSetup } from '../settings/TwoFactor'
 
-const schema = z.object({
-  mobile: z.string().trim().min(10, 'Enter your 10-digit mobile number').max(16),
-  password: z.string().min(1, 'Enter your password'),
+const makeSchema = (t: (k: TKey) => string) => z.object({
+  mobile: z.string().trim().min(10, t('login.mobileErr')).max(16),
+  password: z.string().min(1, t('login.passwordErr')),
 })
-type Values = z.infer<typeof schema>
+type Values = z.infer<ReturnType<typeof makeSchema>>
 
-const REASONS: Record<string, string> = {
-  idle: 'You were signed out after a period of inactivity.',
-  expired: 'Your session has ended. Please sign in again.',
-  inactive: 'Your account is not active. Please contact support.',
-}
+const REASONS: Record<string, TKey> = { idle: 'login.reason.idle', expired: 'login.reason.expired', inactive: 'login.reason.inactive' }
 
 export default function LoginPage() {
   const { completeLogin, signedOutReason } = useAuth()
+  const { t } = useI18n()
   const nav = useNavigate()
   const loc = useLocation()
   const [step, setStep] = useState<'password' | 'otp' | 'setup' | 'codes'>('password')
@@ -36,7 +34,7 @@ export default function LoginPage() {
   const [notice, setNotice] = useState('')
   const [codes, setCodes] = useState<string[]>([])
   const [pendingToken, setPendingToken] = useState('')
-  const { register, handleSubmit, formState: { errors } } = useForm<Values>({ resolver: zodResolver(schema), defaultValues: { mobile: (loc.state as { mobile?: string })?.mobile ?? '' } })
+  const { register, handleSubmit, formState: { errors } } = useForm<Values>({ resolver: zodResolver(makeSchema(t)), defaultValues: { mobile: (loc.state as { mobile?: string })?.mobile ?? '' } })
   const after = (loc.state as { from?: string })?.from ?? '/'
 
   const finish = async (token: string) => { await completeLogin(token); nav(after, { replace: true }) }
@@ -67,53 +65,54 @@ export default function LoginPage() {
     <AuthShell>
       {step === 'password' && (
         <>
-          <h2 className="fw-bold mb-1">Welcome back</h2>
-          <p className="text-muted mb-4">Sign in with your mobile number and password.</p>
-          {signedOutReason && REASONS[signedOutReason] && <Alert variant="warning" className="py-2 small">{REASONS[signedOutReason]}</Alert>}
+          <h2 className="fw-bold mb-1">{t('login.title')}</h2>
+          <p className="text-muted mb-4">{t('login.sub')}</p>
+          {(loc.state as { registered?: boolean })?.registered && !error && <Alert variant="success" className="py-2 small">{t('login.registered')}</Alert>}
+          {signedOutReason && REASONS[signedOutReason] && <Alert variant="warning" className="py-2 small">{t(REASONS[signedOutReason])}</Alert>}
           {error && <Alert variant="danger" className="py-2 small">{error}</Alert>}
           <Form onSubmit={handleSubmit(onPassword)} noValidate>
             <Form.Group className="mb-3">
-              <Form.Label>Mobile number</Form.Label>
+              <Form.Label>{t('login.mobile')}</Form.Label>
               <InputGroup><InputGroup.Text><FiSmartphone /></InputGroup.Text>
                 <Form.Control type="tel" inputMode="tel" autoComplete="username" placeholder="98765 43210" {...register('mobile')} isInvalid={!!errors.mobile} />
                 <Form.Control.Feedback type="invalid">{errors.mobile?.message}</Form.Control.Feedback></InputGroup>
             </Form.Group>
             <Form.Group className="mb-2">
-              <Form.Label>Password</Form.Label>
+              <Form.Label>{t('login.password')}</Form.Label>
               <InputGroup><InputGroup.Text><FiKey /></InputGroup.Text>
                 <Form.Control type={show ? 'text' : 'password'} autoComplete="current-password" {...register('password')} isInvalid={!!errors.password} />
-                <Button variant="outline-secondary" onClick={() => setShow(!show)} aria-label="Show password">{show ? <FiEyeOff /> : <FiEye />}</Button>
+                <Button variant="outline-secondary" onClick={() => setShow(!show)} aria-label={t('login.showPw')}>{show ? <FiEyeOff /> : <FiEye />}</Button>
                 <Form.Control.Feedback type="invalid">{errors.password?.message}</Form.Control.Feedback></InputGroup>
             </Form.Group>
-            <div className="text-end mb-3"><Link to="/forgot-password" className="small">Forgot password?</Link></div>
-            <Button type="submit" className="w-100 btn-gradient py-2" disabled={busy}>{busy ? <Spinner size="sm" /> : 'Sign in'}</Button>
+            <div className="text-end mb-3"><Link to="/forgot-password" className="small">{t('login.forgot')}</Link></div>
+            <Button type="submit" className="w-100 btn-gradient py-2" disabled={busy}>{busy ? <Spinner size="sm" /> : t('login.submit')}</Button>
           </Form>
-          <p className="text-center mt-4 mb-0 small">New to NijMitra? <Link to="/register" className="fw-semibold">Create your account</Link></p>
+          <p className="text-center mt-4 mb-0 small">{t('login.new')} <Link to="/register" className="fw-semibold">{t('login.create')}</Link></p>
         </>
       )}
 
       {step === 'otp' && (
         <>
           <div className="text-center mb-3"><span className="avatar" style={{ width: 56, height: 56 }}><FiShield size={26} /></span></div>
-          <h2 className="fw-bold mb-1 text-center">Two-step verification</h2>
-          <p className="text-muted text-center mb-4">{useRecovery ? 'Enter one of your saved recovery codes.' : 'Open Google Authenticator or Microsoft Authenticator and enter the 6-digit code for NijMitra.'}</p>
+          <h2 className="fw-bold mb-1 text-center">{t('otp.title')}</h2>
+          <p className="text-muted text-center mb-4">{useRecovery ? t('otp.recoveryHelp') : t('otp.help')}</p>
           {error && <Alert variant="danger" className="py-2 small">{error}</Alert>}
           <Form onSubmit={onOtp}>
             <Form.Control autoFocus className="text-center fs-4 secret mb-3" style={{ letterSpacing: useRecovery ? '.1em' : '.5em' }} value={code}
               onChange={(e) => setCode(useRecovery ? e.target.value.toUpperCase() : e.target.value.replace(/\D/g, '').slice(0, 6))}
               inputMode={useRecovery ? 'text' : 'numeric'} autoComplete="one-time-code" placeholder={useRecovery ? 'XXXXX-XXXXX' : '000000'} />
-            <Button type="submit" className="w-100 btn-gradient py-2" disabled={busy || (!useRecovery && code.length !== 6)}>{busy ? <Spinner size="sm" /> : 'Verify & sign in'}</Button>
+            <Button type="submit" className="w-100 btn-gradient py-2" disabled={busy || (!useRecovery && code.length !== 6)}>{busy ? <Spinner size="sm" /> : t('otp.submit')}</Button>
           </Form>
           <div className="d-flex justify-content-between mt-3 small">
-            <a href="#" onClick={(e) => { e.preventDefault(); setUseRecovery(!useRecovery); setCode(''); setError('') }}>{useRecovery ? 'Use authenticator code' : 'Use a recovery code'}</a>
-            <a href="#" onClick={(e) => { e.preventDefault(); setStep('password'); setCode('') }}>Back</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setUseRecovery(!useRecovery); setCode(''); setError('') }}>{useRecovery ? t('otp.useApp') : t('otp.useRecovery')}</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); setStep('password'); setCode('') }}>{t('otp.back')}</a>
           </div>
         </>
       )}
 
       {step === 'setup' && (
         <>
-          <h2 className="fw-bold mb-1">Set up two-step verification</h2>
+          <h2 className="fw-bold mb-1">{t('setup.title')}</h2>
           {notice && <Alert variant="info" className="py-2 small">{notice}</Alert>}
           <TotpSetup
             begin={() => api.post('/api/auth/login/2fa/setup', { challengeToken: challenge }).then((r) => r.data)}

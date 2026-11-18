@@ -2,13 +2,14 @@ import { useEffect, useState } from 'react'
 import { Alert, Badge, Button, Card, Form, Modal, Nav, Spinner, Table } from 'react-bootstrap'
 import { useNavigate, useParams } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { FiActivity, FiAlertTriangle, FiArrowLeft, FiCheckCircle, FiDatabase, FiHardDrive, FiKey, FiLock, FiLogIn, FiMail, FiSend, FiShield, FiSmartphone, FiUnlock, FiUserCheck, FiUserX, FiUsers } from 'react-icons/fi'
+import { FiActivity, FiAlertTriangle, FiArrowDown, FiArrowLeft, FiArrowUp, FiCheckCircle, FiDatabase, FiHardDrive, FiKey, FiLock, FiLogIn, FiMail, FiPlus, FiSend, FiShield, FiSmartphone, FiTrash2, FiUnlock, FiUserCheck, FiUserX, FiUsers, FiX } from 'react-icons/fi'
 import { api, setAccessToken, uploadFile } from '../../lib/api'
 import { useAsync, useDebounced } from '../../lib/hooks'
 import { bytes, date, dateTime, num, relative } from '../../lib/format'
 import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
 import { ErrorBox, Loading, PageHeader, Pager, StatCard, StatusBadge, useConfirm } from '../../components/ui'
+import type { FooterLinkInfo, WebsiteInfo } from '../../lib/i18n'
 
 interface Dash { totalUsers: number; activeUsers: number; inactiveUsers: number; suspendedUsers: number; pendingDeletion: number; newRegistrations7d: number; newRegistrations30d: number; twoFactorUsers: number; onlineNow: number
   loginActivity: { label: string; success: number; failed: number }[]; storageBytes: number; storedFiles: number; notificationsToday: number; delivery: { channel: string; sent: number; failed: number; pending: number }[]; queueBacklog: number; deadLetters: number; databaseHealthy: boolean; serverTimeUtc: string; openReports: number }
@@ -221,11 +222,12 @@ export function AdminSettings() {
   return (
     <>
       <PageHeader title="Platform Settings" subtitle="Application, security, registration, files and maintenance"><Button onClick={() => void save()}>Save settings</Button></PageHeader>
-      <Nav variant="pills" activeKey={tab} onSelect={(k) => setTab(k ?? 'general')} className="mb-3">{[['general', 'General & branding'], ['security', 'Sessions & security'], ['registration', 'Registration'], ['files', 'Files'], ['ops', 'Maintenance']].map(([k, l]) => <Nav.Item key={k}><Nav.Link eventKey={k}>{l}</Nav.Link></Nav.Item>)}</Nav>
+      <Nav variant="pills" activeKey={tab} onSelect={(k) => setTab(k ?? 'general')} className="mb-3">{[['general', 'General & branding'], ['website', 'Website & footer'], ['security', 'Sessions & security'], ['registration', 'Registration'], ['files', 'Files'], ['ops', 'Maintenance']].map(([k, l]) => <Nav.Item key={k}><Nav.Link eventKey={k}>{l}</Nav.Link></Nav.Item>)}</Nav>
       <Card><Card.Body><div className="row">
         {tab === 'general' && <>{txt('applicationName', 'Application name')}{txt('tagline', 'Tagline')}{txt('hindiTagline', 'Hindi tagline')}{txt('supportEmail', 'Support email', 'email')}
           <div className="col-md-6 mb-3"><Form.Label>Custom logo</Form.Label><Form.Control type="file" accept="image/png,image/jpeg,image/webp" onChange={(e) => void brand('logo', (e.target as HTMLInputElement).files?.[0])} /><Form.Text>{f.logoFileId ? 'Custom logo uploaded. ' : 'Using the default NijMitra logo. '}</Form.Text>{!!f.logoFileId && <Button size="sm" variant="link" onClick={() => void api.delete('/api/admin/branding/logo').then((r) => setF(r.data))}>Reset</Button>}</div>
           <div className="col-md-6 mb-3"><Form.Label>Custom favicon</Form.Label><Form.Control type="file" accept=".png,.ico" onChange={(e) => void brand('favicon', (e.target as HTMLInputElement).files?.[0])} />{!!f.faviconFileId && <Button size="sm" variant="link" onClick={() => void api.delete('/api/admin/branding/favicon').then((r) => setF(r.data))}>Reset</Button>}</div></>}
+        {tab === 'website' && <WebsiteEditor value={f.website as WebsiteInfo} onChange={(w) => setF({ ...f, website: w })} />}
         {tab === 'security' && <>{txt('sessionIdleTimeoutSeconds', 'Auto-logout after inactivity (seconds)', 'number', 'Default 60. Enforced in the browser and on the server.')}{txt('sessionWarningSeconds', 'Warning before logout (seconds)', 'number')}
           {txt('sessionAbsoluteHours', 'Maximum session length (hours)', 'number')}{txt('maxLoginAttempts', 'Failed logins before lockout', 'number')}{txt('lockoutMinutes', 'Lockout duration (minutes)', 'number')}
           {sw('enforceTwoFactor', 'Require two-step verification for everyone', 'When on, users without an authenticator must set one up at their next login.')}
@@ -323,3 +325,56 @@ export function AdminReports() {
   )
 }
 
+
+const SOCIAL = ['facebook', 'instagram', 'x', 'youtube', 'linkedin', 'whatsapp', 'telegram', 'website']
+
+/** Admin editor for the public website footer (Settings → Website & footer). Saved with "Save settings". */
+function WebsiteEditor({ value, onChange }: { value: WebsiteInfo; onChange: (w: WebsiteInfo) => void }) {
+  const w = value
+  const set = (patch: Partial<WebsiteInfo>) => onChange({ ...w, ...patch })
+  const setCol = (i: number, patch: Partial<WebsiteInfo['columns'][number]>) => set({ columns: w.columns.map((c, j) => (j === i ? { ...c, ...patch } : c)) })
+  const setLink = (i: number, k: number, patch: Partial<FooterLinkInfo>) => setCol(i, { links: w.columns[i].links.map((l, j) => (j === k ? { ...l, ...patch } : l)) })
+  const move = <T,>(arr: T[], i: number, d: number) => { const n = [...arr]; const [x] = n.splice(i, 1); n.splice(Math.max(0, Math.min(n.length, i + d)), 0, x); return n }
+  const field = (k: keyof WebsiteInfo, label: string, help?: string, area = false) => (
+    <Form.Group className={area ? 'col-md-6 mb-3' : 'col-md-4 mb-3'}><Form.Label>{label}</Form.Label>
+      {area ? <Form.Control as="textarea" rows={3} value={String(w[k] ?? '')} onChange={(e) => set({ [k]: e.target.value } as Partial<WebsiteInfo>)} />
+        : <Form.Control value={String(w[k] ?? '')} onChange={(e) => set({ [k]: e.target.value } as Partial<WebsiteInfo>)} />}{help && <Form.Text>{help}</Form.Text>}</Form.Group>)
+  return (
+    <>
+      <div className="col-12"><Alert variant="info" className="small">This is the footer shown at the bottom of the home page (nijmitra.com). Each text has an English version and an optional Hindi version shown when a visitor picks हिन्दी. Click <b>Save settings</b> to publish changes.</Alert></div>
+      {field('aboutEn', 'About text (English)', undefined, true)}{field('aboutHi', 'About text (Hindi, optional)', undefined, true)}
+      {field('copyrightName', 'Copyright name', 'Shown as © year name')}{field('companyLine', 'Company line (optional)', 'e.g. "A product by …". Leave empty to hide.')}{field('playStoreUrl', 'Google Play link (optional)', 'When set, the Android card on the home page links to the Play Store.')}
+      {field('contactEmail', 'Contact email')}{field('contactPhone', 'Contact phone')}{field('address', 'Address')}
+      <div className="col-12"><hr /><div className="d-flex justify-content-between align-items-center mb-2"><h6 className="mb-0">Footer columns &amp; links</h6>
+        <Button size="sm" variant="outline-primary" disabled={w.columns.length >= 6} onClick={() => set({ columns: [...w.columns, { titleEn: 'New column', titleHi: '', links: [] }] })}><FiPlus /> Add column</Button></div></div>
+      {w.columns.map((c, i) => (
+        <div className="col-lg-6 mb-3" key={i}><Card className="h-100"><Card.Header className="d-flex gap-2 align-items-center">
+          <Form.Control size="sm" placeholder="Title (English)" value={c.titleEn} onChange={(e) => setCol(i, { titleEn: e.target.value })} />
+          <Form.Control size="sm" placeholder="Title (Hindi)" value={c.titleHi ?? ''} onChange={(e) => setCol(i, { titleHi: e.target.value })} />
+          <Button size="sm" variant="link" className="p-1" disabled={i === 0} onClick={() => set({ columns: move(w.columns, i, -1) })} aria-label="Move left"><FiArrowUp /></Button>
+          <Button size="sm" variant="link" className="p-1" disabled={i === w.columns.length - 1} onClick={() => set({ columns: move(w.columns, i, 1) })} aria-label="Move right"><FiArrowDown /></Button>
+          <Button size="sm" variant="link" className="p-1 text-danger" onClick={() => set({ columns: w.columns.filter((_, j) => j !== i) })} aria-label="Remove column"><FiTrash2 /></Button>
+        </Card.Header><Card.Body className="small">
+          {c.links.map((l, k) => <div className="d-flex gap-1 mb-2 align-items-center" key={k}>
+            <Form.Control size="sm" placeholder="Label (English)" value={l.labelEn} onChange={(e) => setLink(i, k, { labelEn: e.target.value })} />
+            <Form.Control size="sm" placeholder="Label (Hindi)" value={l.labelHi ?? ''} onChange={(e) => setLink(i, k, { labelHi: e.target.value })} />
+            <Form.Control size="sm" placeholder="https://… or /page" value={l.url} onChange={(e) => setLink(i, k, { url: e.target.value })} />
+            <Button size="sm" variant="link" className="p-1" disabled={k === 0} onClick={() => setCol(i, { links: move(c.links, k, -1) })} aria-label="Move up"><FiArrowUp /></Button>
+            <Button size="sm" variant="link" className="p-1 text-danger" onClick={() => setCol(i, { links: c.links.filter((_, j) => j !== k) })} aria-label="Remove link"><FiX /></Button>
+          </div>)}
+          <Button size="sm" variant="link" className="p-0" disabled={c.links.length >= 12} onClick={() => setCol(i, { links: [...c.links, { labelEn: '', labelHi: '', url: '' }] })}><FiPlus /> Add link</Button>
+        </Card.Body></Card></div>))}
+      <div className="col-12"><Form.Text>Links can be https://…, mailto:…, tel:…, a page on this site like /privacy.html, or a home-page section like #features.</Form.Text><hr /><h6>Social media</h6></div>
+      {w.socialLinks.map((sl, i) => <div className="col-md-6 d-flex gap-2 mb-2" key={i}>
+        <Form.Select size="sm" style={{ maxWidth: 150 }} value={sl.platform} onChange={(e) => set({ socialLinks: w.socialLinks.map((x, j) => (j === i ? { ...x, platform: e.target.value } : x)) })}>{SOCIAL.map((p) => <option key={p} value={p}>{p === 'x' ? 'X (Twitter)' : p[0].toUpperCase() + p.slice(1)}</option>)}</Form.Select>
+        <Form.Control size="sm" placeholder="https://…" value={sl.url} onChange={(e) => set({ socialLinks: w.socialLinks.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })} />
+        <Button size="sm" variant="link" className="text-danger" onClick={() => set({ socialLinks: w.socialLinks.filter((_, j) => j !== i) })} aria-label="Remove"><FiX /></Button></div>)}
+      <div className="col-12"><Button size="sm" variant="outline-primary" disabled={w.socialLinks.length >= 10} onClick={() => set({ socialLinks: [...w.socialLinks, { platform: 'instagram', url: '' }] })}><FiPlus /> Add social link</Button></div>
+      <div className="col-12"><hr /><h6>Android app (Google Play)</h6>
+        <p className="small text-muted mb-2">The NijMitra Android app opens this website full-screen only when the fingerprints below match the app's signing key. After the first upload to Google Play, copy the <b>SHA-256 certificate fingerprint</b> from Play Console → Test and release → App integrity → App signing and add it here (keep the upload-key fingerprint too). Published at <a href="/.well-known/assetlinks.json" target="_blank" rel="noreferrer">/.well-known/assetlinks.json</a>.</p></div>
+      <Form.Group className="col-md-4 mb-3"><Form.Label>Android package name</Form.Label><Form.Control value={w.androidPackageName ?? ''} onChange={(e) => set({ androidPackageName: e.target.value })} /></Form.Group>
+      <Form.Group className="col-md-8 mb-3"><Form.Label>SHA-256 certificate fingerprints (one per line)</Form.Label>
+        <Form.Control as="textarea" rows={3} className="font-monospace small" value={(w.androidSha256Fingerprints ?? []).join('\n')} onChange={(e) => set({ androidSha256Fingerprints: e.target.value.split('\n') })} /></Form.Group>
+    </>
+  )
+}

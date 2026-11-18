@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NIJMITRA.API.Infrastructure;
+using NIJMITRA.Application.Abstractions;
 using NIJMITRA.Application.Common;
 using NIJMITRA.Application.CustomTables;
 using NIJMITRA.Application.Documents;
@@ -18,10 +19,30 @@ namespace NIJMITRA.API.Controllers;
 public abstract class AppControllerBase : ControllerBase
 {
     protected FileContentResult Download((byte[] Data, string ContentType, string FileName) f) => File(f.Data, f.ContentType, f.FileName);
-    protected FileStreamResult Stream(FileStreamResultDto f, bool inline)
+    /// <summary>
+    /// Streams a file. With <c>?view=preview</c>, Excel/CSV/Word files are returned as a JSON preview instead
+    /// (same authorization as the download itself), so they can be viewed in the app without downloading.
+    /// </summary>
+    protected IActionResult Stream(FileStreamResultDto f, bool inline)
     {
         Response.Headers.CacheControl = "private, no-store";
+        if (Request.Query["view"] == "preview")
+        {
+            var previewer = HttpContext.RequestServices.GetRequiredService<IOfficePreviewService>();
+            if (!previewer.CanPreview(f.ContentType, f.FileName)) { f.Content.Dispose(); return BadRequest(new { message = "This file type cannot be previewed." }); }
+            return new PreviewResult(previewer, f);
+        }
         return inline ? File(f.Content, f.ContentType) : File(f.Content, f.ContentType, f.FileName);
+    }
+
+    private sealed class PreviewResult(IOfficePreviewService previewer, FileStreamResultDto f) : IActionResult
+    {
+        public async Task ExecuteResultAsync(ActionContext context)
+        {
+            await using var content = f.Content;
+            var preview = await previewer.PreviewAsync(content, f.ContentType, f.FileName, context.HttpContext.RequestAborted);
+            await new ObjectResult(preview).ExecuteResultAsync(context);
+        }
     }
 }
 

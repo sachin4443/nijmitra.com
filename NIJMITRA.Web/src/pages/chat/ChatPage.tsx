@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, Badge, Button, Card, Dropdown, Form, InputGroup, Modal, Nav, Spinner } from 'react-bootstrap'
 import { useNavigate, useParams } from 'react-router-dom'
-import { FiArrowLeft, FiCheck, FiClock, FiCopy, FiCornerUpLeft, FiDownload, FiEyeOff, FiFile, FiMessageCircle, FiMoreVertical, FiPaperclip, FiSearch, FiSend, FiShield, FiTrash2, FiUserPlus, FiX } from 'react-icons/fi'
+import { FiAlertCircle, FiArrowDown, FiArrowLeft, FiCheck, FiClock, FiCopy, FiCornerUpLeft, FiDownload, FiEyeOff, FiFile, FiMessageCircle, FiMoreVertical, FiPaperclip, FiSearch, FiSend, FiShield, FiTrash2, FiUserPlus, FiX } from 'react-icons/fi'
 import { BiCheckDouble } from 'react-icons/bi'
 import { api, blobUrl, downloadFile, uploadFile } from '../../lib/api'
 import { useAsync } from '../../lib/hooks'
+import { compressImage, imageCache } from '../../lib/image'
 import { bytes, dateTime, relative, time } from '../../lib/format'
 import { useAuth } from '../../contexts/AuthContext'
 import { useRealtime, useRealtimeEvent } from '../../contexts/RealtimeContext'
@@ -13,7 +14,9 @@ import { Avatar, EmptyState, Loading, PageHeader, PreviewModal, useConfirm } fro
 
 interface Friend { userId: string; publicId: string; fullName: string; hasAvatar: boolean; isOnline: boolean; lastSeenAt?: string; conversationId: string; lastMessage?: string; lastMessageAt?: string; unreadCount: number; isBlocked: boolean; blockedMe: boolean; disappearingSeconds?: number | null }
 interface Att { fileId: string; fileName: string; contentType: string; sizeBytes: number }
-interface Msg { id: string; conversationId: string; senderId: string; type: string; body?: string; replyToMessageId?: string; replyPreview?: string; createdAt: string; isDeleted: boolean; expiresAt?: string; status: string; attachments: Att[] }
+interface Msg { id: string; conversationId: string; senderId: string; type: string; body?: string; replyToMessageId?: string; replyPreview?: string; createdAt: string; isDeleted: boolean; expiresAt?: string; status: string; attachments: Att[]; local?: LocalState }
+interface LocalFile { name: string; type: string; size: number; url: string; progress: number }
+interface LocalState { raw: File[]; files: LocalFile[]; failed?: boolean }
 interface Req { id: string; user: { id: string; publicId: string; fullName: string }; message?: string; createdAt: string }
 
 export default function ChatPage() {
@@ -30,9 +33,9 @@ export default function ChatPage() {
   useRealtimeEvent('friendAccepted', () => void friends.reload())
   const active = friends.data?.find((f) => f.conversationId === conversationId)
   return (
-    <>
+    <div className={`chat-page ${conversationId ? 'has-active' : ''}`}>
       <PageHeader title="Friends & Chat" subtitle="Private conversations with people you trust" icon={<FiMessageCircle />} />
-      <Card className="overflow-hidden">
+      <Card className="overflow-hidden chat-card">
         <div className={`chat-shell ${conversationId ? 'has-active' : ''}`}>
           <div className="chat-list">
             <div className="p-2 border-bottom"><Nav variant="pills" activeKey={tab} onSelect={(k) => setTab(k as typeof tab)} className="flex-nowrap small">
@@ -55,7 +58,7 @@ export default function ChatPage() {
           </div>
         </div>
       </Card>
-    </>
+    </div>
   )
 }
 
@@ -107,14 +110,31 @@ function AddFriend({ onAdded }: { onAdded: () => void }) {
   )
 }
 
+const fileUrl = (messageId: string, fileId: string) => `/api/chat/messages/${messageId}/files/${fileId}?inline=true`
+
 function AttachmentView({ m, a, onPreview }: { m: Msg; a: Att; onPreview: () => void }) {
-  const [src, setSrc] = useState<string>()
+  const key = fileUrl(m.id, a.fileId)
   const isImg = a.contentType.startsWith('image/')
-  useEffect(() => { if (!isImg) return; let u: string; blobUrl(`/api/chat/messages/${m.id}/files/${a.fileId}?inline=true`).then((x) => { u = x; setSrc(x) }).catch(() => {}); return () => { if (u) URL.revokeObjectURL(u) } }, [isImg, m.id, a.fileId])
-  if (isImg) return src ? <img src={src} className="attachment clickable" alt={a.fileName} onClick={onPreview} draggable={false} /> : <Spinner size="sm" />
+  const [src, setSrc] = useState<string | undefined>(() => (isImg ? imageCache.get(key) : undefined))
+  useEffect(() => {
+    if (!isImg || src) return
+    let alive = true
+    blobUrl(key).then((x) => { imageCache.set(key, x); if (alive) setSrc(x) }).catch(() => {})
+    return () => { alive = false }
+  }, [isImg, key, src])
+  if (isImg) return src ? <img src={src} className="attachment clickable" alt={a.fileName} onClick={onPreview} draggable={false} /> : <div className="attachment-ph"><Spinner size="sm" /></div>
   return <div className="d-flex align-items-center gap-2 small clickable" onClick={onPreview}><FiFile /><span className="truncate">{a.fileName}</span><span className="opacity-75">{bytes(a.sizeBytes)}</span>
     <Button size="sm" variant="link" className="p-0 text-reset" onClick={(e) => { e.stopPropagation(); void downloadFile(`/api/chat/messages/${m.id}/files/${a.fileId}`, a.fileName) }}><FiDownload /></Button></div>
 }
+
+/** A file that is still uploading: shown immediately from the local copy with a progress bar. */
+function LocalAttachment({ f, failed }: { f: LocalFile; failed?: boolean }) {
+  const bar = !failed && f.progress < 100 && <div className="upload-progress"><span style={{ width: `${Math.max(4, f.progress)}%` }} /></div>
+  if (f.type.startsWith('image/')) return <div className="position-relative d-inline-block"><img src={f.url} className="attachment" alt={f.name} style={{ opacity: failed ? 0.5 : 0.85 }} draggable={false} />{bar}</div>
+  return <div className="small"><div className="d-flex align-items-center gap-2"><FiFile /><span className="truncate">{f.name}</span><span className="opacity-75">{bytes(f.size)}</span></div>{bar}</div>
+}
+
+let tempSeq = 0
 
 function Conversation({ friend, onBack, onChanged }: { friend: Friend; onBack: () => void; onChanged: () => void }) {
   const { me } = useAuth()
@@ -128,13 +148,34 @@ function Conversation({ friend, onBack, onChanged }: { friend: Friend; onBack: (
   const [reply, setReply] = useState<Msg | null>(null)
   const [typing, setTyping] = useState(false)
   const [files, setFiles] = useState<File[]>([])
-  const [sending, setSending] = useState(false)
   const [search, setSearch] = useState<string | null>(null)
   const [preview, setPreview] = useState<{ url: string; name: string; type: string } | null>(null)
   const [report, setReport] = useState(false)
+  const [showJump, setShowJump] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  const inner = useRef<HTMLDivElement>(null)
+  const input = useRef<HTMLTextAreaElement>(null)
+  const stick = useRef(true) // true while the user is at (or near) the bottom of the conversation
   const typingTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const theirTypingTimer = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const lastTypingSent = useRef(0)
   const conv = friend.conversationId
+
+  const scrollBottom = (behavior: ScrollBehavior = 'auto') => requestAnimationFrame(() => { const el = box.current; if (el) el.scrollTo({ top: el.scrollHeight, behavior }) })
+  const onScroll = () => {
+    const el = box.current
+    if (!el) return
+    stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 90
+    if (stick.current) setShowJump(false)
+  }
+  // Keeps the view pinned to the newest message while content grows (new messages, images finishing loading, typing indicator).
+  useEffect(() => {
+    const el = inner.current
+    if (!el) return
+    const ro = new ResizeObserver(() => { if (stick.current && box.current) box.current.scrollTop = box.current.scrollHeight })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [loading])
 
   const load = useCallback(async (before?: string) => {
     const r = await api.get<Msg[]>(`/api/chat/conversations/${conv}/messages`, { params: { before, take: 40, search: search || undefined } })
@@ -143,8 +184,8 @@ function Conversation({ friend, onBack, onChanged }: { friend: Friend; onBack: (
   }, [conv, search])
   useEffect(() => {
     let cancelled = false
-    setLoading(true); setMsgs([])
-    load().then((d) => { if (!cancelled) { setMsgs(d); setLoading(false); setTimeout(() => box.current?.scrollTo({ top: box.current.scrollHeight }), 30) } }).catch(() => setLoading(false))
+    setLoading(true); setMsgs([]); stick.current = true; setShowJump(false)
+    load().then((d) => { if (!cancelled) { setMsgs(d); setLoading(false); scrollBottom() } }).catch(() => setLoading(false))
     void api.post(`/api/chat/conversations/${conv}/read`).catch(() => {})
     return () => { cancelled = true }
   }, [conv, load])
@@ -152,42 +193,92 @@ function Conversation({ friend, onBack, onChanged }: { friend: Friend; onBack: (
   useRealtimeEvent<Msg>('message', (m) => {
     if (m.conversationId !== conv) return
     setMsgs((x) => (x.some((y) => y.id === m.id) ? x : [...x, m]))
-    if (m.senderId !== me?.id) void invoke('MarkRead', conv)
-    setTimeout(() => box.current?.scrollTo({ top: box.current.scrollHeight, behavior: 'smooth' }), 30)
+    if (m.senderId !== me?.id) { setTyping(false); void invoke('MarkRead', conv).catch(() => {}); if (!stick.current) setShowJump(true) }
   })
   useRealtimeEvent<{ id: string; conversationId: string }>('messageDeleted', (d) => d.conversationId === conv && setMsgs((x) => x.map((m) => (m.id === d.id ? { ...m, isDeleted: true, body: undefined, attachments: [] } : m))))
   useRealtimeEvent<{ id: string; conversationId: string }>('messageExpired', (d) => d.conversationId === conv && setMsgs((x) => x.filter((m) => m.id !== d.id)))
-  useRealtimeEvent<{ conversationId: string; userId: string; isTyping: boolean }>('typing', (t) => { if (t.conversationId === conv && t.userId === friend.userId) setTyping(t.isTyping) })
-  useRealtimeEvent<{ conversationId: string; at: string }>('read', (r) => r.conversationId === conv && setMsgs((x) => x.map((m) => (m.senderId === me?.id && m.createdAt <= r.at ? { ...m, status: 'read' } : m))))
+  useRealtimeEvent<{ conversationId: string; userId: string; isTyping: boolean }>('typing', (t) => {
+    if (t.conversationId !== conv || t.userId !== friend.userId) return
+    setTyping(t.isTyping)
+    clearTimeout(theirTypingTimer.current)
+    if (t.isTyping) theirTypingTimer.current = setTimeout(() => setTyping(false), 6000) // safety: never show "typing" forever
+  })
+  useRealtimeEvent<{ conversationId: string; at: string }>('read', (r) => r.conversationId === conv && setMsgs((x) => x.map((m) => (m.senderId === me?.id && !m.local && m.createdAt <= r.at ? { ...m, status: 'read' } : m))))
   useRealtimeEvent<{ conversationId: string; at: string }>('delivered', (r) => r.conversationId === conv && setMsgs((x) => x.map((m) => (m.senderId === me?.id && m.status === 'sent' && m.createdAt <= r.at ? { ...m, status: 'delivered' } : m))))
   useRealtimeEvent('conversationUpdated', () => onChanged())
 
+  const stopTyping = () => {
+    clearTimeout(typingTimer.current)
+    if (lastTypingSent.current) { lastTypingSent.current = 0; void invoke('Typing', conv, false).catch(() => {}) }
+  }
   const onType = (v: string) => {
     setText(v)
-    void invoke('Typing', conv, true)
+    const now = Date.now()
+    if (now - lastTypingSent.current > 2500) { lastTypingSent.current = now; void invoke('Typing', conv, true).catch(() => {}) } // throttled: not one call per key press
     clearTimeout(typingTimer.current)
-    typingTimer.current = setTimeout(() => void invoke('Typing', conv, false), 2500)
+    typingTimer.current = setTimeout(stopTyping, 3000)
   }
-  const send = async (e?: React.FormEvent) => {
-    e?.preventDefault()
-    if (!text.trim() && files.length === 0) return
-    setSending(true)
+  useEffect(() => () => { clearTimeout(typingTimer.current); clearTimeout(theirTypingTimer.current) }, [])
+
+  const patchLocal = (id: string, fn: (l: LocalState) => LocalState) => setMsgs((x) => x.map((m) => (m.id === id && m.local ? { ...m, local: fn(m.local) } : m)))
+  const deliver = async (temp: Msg) => {
+    const { raw, files: lf } = temp.local!
     try {
-      const fileIds: string[] = []
-      for (const f of files) fileIds.push((await uploadFile<{ id: string }>('/api/uploads?purpose=chat', f)).id)
-      const r = await api.post<Msg>(`/api/chat/conversations/${conv}/messages`, { body: text.trim() || null, replyToMessageId: reply?.id ?? null, fileIds })
-      setMsgs((x) => (x.some((y) => y.id === r.data.id) ? x : [...x, r.data]))
-      setText(''); setFiles([]); setReply(null); void invoke('Typing', conv, false)
-      setTimeout(() => box.current?.scrollTo({ top: box.current.scrollHeight, behavior: 'smooth' }), 30)
-    } catch (x) { toast.error(x) } finally { setSending(false) }
+      // Uploads run in parallel; large photos are resized in the browser first.
+      const ids = await Promise.all(raw.map(async (f, i) => {
+        const small = await compressImage(f)
+        const r = await uploadFile<{ id: string }>('/api/uploads?purpose=chat', small, undefined, (p) => patchLocal(temp.id, (l) => ({ ...l, files: l.files.map((x, j) => (j === i ? { ...x, progress: p } : x)) })))
+        return r.id
+      }))
+      const r = await api.post<Msg>(`/api/chat/conversations/${conv}/messages`, { body: temp.body ?? null, replyToMessageId: temp.replyToMessageId ?? null, fileIds: ids })
+      const used = new Set<string>()
+      for (const a of r.data.attachments) {
+        const i = ids.indexOf(a.fileId)
+        if (i >= 0 && a.contentType.startsWith('image/')) { imageCache.set(fileUrl(r.data.id, a.fileId), lf[i].url); used.add(lf[i].url) } // show our own photo instantly, no re-download
+      }
+      lf.forEach((f) => { if (!used.has(f.url)) URL.revokeObjectURL(f.url) })
+      setMsgs((x) => (x.some((m) => m.id === r.data.id) ? x.filter((m) => m.id !== temp.id) : x.map((m) => (m.id === temp.id ? r.data : m))))
+    } catch (e) {
+      patchLocal(temp.id, (l) => ({ ...l, failed: true }))
+      toast.error(e)
+    }
   }
-  const loadOlder = async () => { if (!msgs[0]) return; const older = await load(msgs[0].createdAt); setMsgs([...older, ...msgs]) }
+  const send = (e?: React.FormEvent) => {
+    e?.preventDefault()
+    const body = text.trim()
+    if (!body && files.length === 0) return
+    const raw = files
+    const temp: Msg = {
+      id: `tmp-${Date.now()}-${++tempSeq}`, conversationId: conv, senderId: me!.id, type: 'Text', body: body || undefined,
+      replyToMessageId: reply?.id, replyPreview: reply ? (reply.body ?? '📎 Attachment') : undefined, createdAt: new Date().toISOString(),
+      isDeleted: false, status: 'sending', attachments: [],
+      local: { raw, files: raw.map((f) => ({ name: f.name, type: f.type, size: f.size, url: URL.createObjectURL(f), progress: 0 })) },
+    }
+    // The message appears at once; the network work happens in the background.
+    setMsgs((x) => [...x, temp]); setText(''); setFiles([]); setReply(null); stopTyping()
+    stick.current = true; setShowJump(false); scrollBottom()
+    input.current?.focus()
+    void deliver(temp)
+  }
+  const retry = (m: Msg) => { patchLocal(m.id, (l) => ({ ...l, failed: false })); void deliver(m) }
+  const discard = (m: Msg) => { m.local?.files.forEach((f) => URL.revokeObjectURL(f.url)); setMsgs((x) => x.filter((y) => y.id !== m.id)) }
+  const loadOlder = async () => {
+    const first = msgs.find((m) => !m.local)
+    if (!first || !box.current) return
+    const el = box.current
+    const prevHeight = el.scrollHeight
+    const older = await load(first.createdAt)
+    setMsgs((x) => [...older.filter((o) => !x.some((m) => m.id === o.id)), ...x])
+    requestAnimationFrame(() => { el.scrollTop = el.scrollHeight - prevHeight + el.scrollTop }) // keep the reading position
+  }
+  const addFiles = (list: FileList | File[] | null | undefined) => { const arr = Array.from(list ?? []); if (arr.length) setFiles((f) => [...f, ...arr].slice(0, 10)) }
   const disabled = friend.isBlocked || friend.blockedMe
-  const tick = (s: string) => s === 'read' ? <BiCheckDouble className="text-info" /> : s === 'delivered' ? <BiCheckDouble /> : <FiCheck />
+  const tick = (m: Msg) => m.local ? (m.local.failed ? <FiAlertCircle className="text-warning" /> : <FiClock />) : m.status === 'read' ? <BiCheckDouble className="text-info" /> : m.status === 'delivered' ? <BiCheckDouble /> : <FiCheck />
+  const rows = Math.min(5, Math.max(1, text.split('\n').length))
   return (
     <>
-      <div className="d-flex align-items-center gap-2 p-2 border-bottom">
-        <Button variant="link" className="d-md-none text-body p-1" onClick={onBack}><FiArrowLeft /></Button>
+      <div className="d-flex align-items-center gap-2 p-2 border-bottom flex-shrink-0">
+        <Button variant="link" className="d-md-none text-body p-1" onClick={onBack} aria-label="Back"><FiArrowLeft /></Button>
         <Avatar name={friend.fullName} src={friend.hasAvatar ? `/api/me/avatar/${friend.userId}` : null} size={38} />
         <div className="flex-grow-1 min-w-0"><div className="fw-semibold truncate">{friend.fullName}</div><div className="small text-muted">{typing ? <span className="text-primary">typing…</span> : friend.isOnline ? 'Online' : `Last seen ${relative(friend.lastSeenAt)}`}</div></div>
         {friend.disappearingSeconds && <Badge bg="" className="badge-soft" title="Disappearing messages on"><FiClock /> {friend.disappearingSeconds >= 86400 ? `${friend.disappearingSeconds / 86400}d` : `${friend.disappearingSeconds / 3600}h`}</Badge>}
@@ -201,36 +292,46 @@ function Conversation({ friend, onBack, onChanged }: { friend: Friend; onBack: (
           <Dropdown.Item className="text-danger" onClick={async () => { if (await confirm({ title: `Remove ${friend.fullName} from friends?`, confirmText: 'Remove' })) { await api.delete(`/api/chat/friends/${friend.userId}`); onChanged(); onBack() } }}>Remove friend</Dropdown.Item>
         </Dropdown.Menu></Dropdown>
       </div>
-      {search !== null && <div className="p-2 border-bottom"><Form.Control size="sm" autoFocus placeholder="Search in this conversation…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>}
-      <div className="chat-messages protected" ref={box} onContextMenu={(e) => e.preventDefault()} onCopy={(e) => e.preventDefault()}>
-        <div className="chat-system"><FiEyeOff /> Private chat · copying is disabled. Screenshots can't be fully blocked on the web — share sensitive things carefully.</div>
-        {loading ? <Loading /> : <>
-          {hasMore && msgs.length > 0 && !search && <div className="text-center mb-2"><Button size="sm" variant="link" onClick={() => void loadOlder()}>Load older messages</Button></div>}
-          {msgs.length === 0 && <div className="chat-system">{search ? 'No matches.' : 'Say namaste 👋'}</div>}
-          {msgs.map((m) => m.type === 'System' ? <div key={m.id} className="chat-system">{m.senderId === me?.id ? 'You' : friend.fullName.split(' ')[0]} {m.body}</div> : (
-            <div key={m.id} className={`bubble ${m.senderId === me?.id ? 'mine' : 'theirs'}`}>
-              {m.replyPreview && <div className="reply">{m.replyPreview}</div>}
-              {m.isDeleted ? <em className="opacity-75">Message deleted</em> : <>
-                {m.attachments.map((a) => <AttachmentView key={a.fileId} m={m} a={a} onPreview={() => setPreview({ url: `/api/chat/messages/${m.id}/files/${a.fileId}?inline=true`, name: a.fileName, type: a.contentType })} />)}
-                {m.body && <div style={{ whiteSpace: 'pre-wrap' }}>{m.body}</div>}</>}
-              <div className="meta d-flex justify-content-end align-items-center gap-1">
-                {m.expiresAt && <FiClock title={`Disappears ${dateTime(m.expiresAt)}`} />}{time(m.createdAt)} {m.senderId === me?.id && !m.isDeleted && tick(m.status)}
-                {!m.isDeleted && <Dropdown className="d-inline"><Dropdown.Toggle as="span" className="no-caret clickable ms-1"><FiMoreVertical /></Dropdown.Toggle><Dropdown.Menu>
-                  <Dropdown.Item onClick={() => setReply(m)}><FiCornerUpLeft className="me-2" />Reply</Dropdown.Item>
-                  {m.senderId === me?.id && <Dropdown.Item className="text-danger" onClick={async () => { if (await confirm({ title: 'Delete this message for everyone?' })) await api.delete(`/api/chat/messages/${m.id}`).catch(toast.error) }}><FiTrash2 className="me-2" />Delete</Dropdown.Item>}
-                </Dropdown.Menu></Dropdown>}
-              </div>
-            </div>))}
-        </>}
+      {search !== null && <div className="p-2 border-bottom flex-shrink-0"><Form.Control size="sm" autoFocus placeholder="Search in this conversation…" value={search} onChange={(e) => setSearch(e.target.value)} /></div>}
+      <div className="chat-body">
+        <div className="chat-messages protected" ref={box} onScroll={onScroll} onContextMenu={(e) => e.preventDefault()} onCopy={(e) => e.preventDefault()}>
+          <div ref={inner}>
+            <div className="chat-system"><FiEyeOff /> Private chat · copying is disabled. Screenshots can't be fully blocked on the web — share sensitive things carefully.</div>
+            {loading ? <Loading /> : <>
+              {hasMore && msgs.length > 0 && !search && <div className="text-center mb-2"><Button size="sm" variant="link" onClick={() => void loadOlder()}>Load older messages</Button></div>}
+              {msgs.length === 0 && <div className="chat-system">{search ? 'No matches.' : 'Say namaste 👋'}</div>}
+              {msgs.map((m) => m.type === 'System' ? <div key={m.id} className="chat-system">{m.senderId === me?.id ? 'You' : friend.fullName.split(' ')[0]} {m.body}</div> : (
+                <div key={m.id} className={`bubble ${m.senderId === me?.id ? 'mine' : 'theirs'} ${m.local ? 'pending' : ''}`}>
+                  {m.replyPreview && <div className="reply">{m.replyPreview}</div>}
+                  {m.isDeleted ? <em className="opacity-75">Message deleted</em> : <>
+                    {m.local ? m.local.files.map((f, i) => <LocalAttachment key={i} f={f} failed={m.local!.failed} />)
+                      : m.attachments.map((a) => <AttachmentView key={a.fileId} m={m} a={a} onPreview={() => setPreview({ url: fileUrl(m.id, a.fileId), name: a.fileName, type: a.contentType })} />)}
+                    {m.body && <div style={{ whiteSpace: 'pre-wrap' }}>{m.body}</div>}</>}
+                  {m.local?.failed && <div className="small mt-1">Not sent · <span role="button" className="text-decoration-underline" onClick={() => retry(m)}>Retry</span> · <span role="button" className="text-decoration-underline" onClick={() => discard(m)}>Remove</span></div>}
+                  <div className="meta d-flex justify-content-end align-items-center gap-1">
+                    {m.expiresAt && <FiClock title={`Disappears ${dateTime(m.expiresAt)}`} />}{time(m.createdAt)} {m.senderId === me?.id && !m.isDeleted && tick(m)}
+                    {!m.isDeleted && !m.local && <Dropdown className="d-inline"><Dropdown.Toggle as="span" className="no-caret clickable ms-1"><FiMoreVertical /></Dropdown.Toggle><Dropdown.Menu>
+                      <Dropdown.Item onClick={() => { setReply(m); input.current?.focus() }}><FiCornerUpLeft className="me-2" />Reply</Dropdown.Item>
+                      {m.senderId === me?.id && <Dropdown.Item className="text-danger" onClick={async () => { if (await confirm({ title: 'Delete this message for everyone?' })) await api.delete(`/api/chat/messages/${m.id}`).catch(toast.error) }}><FiTrash2 className="me-2" />Delete</Dropdown.Item>}
+                    </Dropdown.Menu></Dropdown>}
+                  </div>
+                </div>))}
+              {typing && <div className="bubble theirs typing-bubble" aria-label={`${friend.fullName} is typing`}><span /><span /><span /></div>}
+            </>}
+          </div>
+        </div>
+        {showJump && <Button size="sm" className="chat-jump shadow" onClick={() => { stick.current = true; setShowJump(false); scrollBottom('smooth') }}><FiArrowDown /> New messages</Button>}
       </div>
-      {disabled ? <Alert variant="secondary" className="m-2 small">{friend.isBlocked ? 'You blocked this user. Unblock to send messages.' : 'You cannot reply to this conversation.'}</Alert> : (
-        <Form onSubmit={send} className="p-2 border-top">
+      {disabled ? <Alert variant="secondary" className="m-2 small flex-shrink-0">{friend.isBlocked ? 'You blocked this user. Unblock to send messages.' : 'You cannot reply to this conversation.'}</Alert> : (
+        <Form onSubmit={send} className="chat-composer">
           {reply && <div className="small d-flex justify-content-between bg-body-tertiary rounded p-1 px-2 mb-1"><span className="truncate"><FiCornerUpLeft /> {reply.body ?? 'Attachment'}</span><span role="button" onClick={() => setReply(null)}><FiX /></span></div>}
-          {files.length > 0 && <div className="small mb-1">{files.map((f, i) => <span key={i} className="tag">{f.name} <span role="button" onClick={() => setFiles(files.filter((_, j) => j !== i))}>✕</span></span>)}</div>}
+          {files.length > 0 && <div className="small mb-1 d-flex flex-wrap gap-1">{files.map((f, i) => <span key={i} className="tag">{f.name} · {bytes(f.size)} <span role="button" onClick={() => setFiles(files.filter((_, j) => j !== i))}>✕</span></span>)}</div>}
           <InputGroup>
-            <label className="btn btn-outline-secondary mb-0" title="Attach"><FiPaperclip /><input type="file" hidden multiple accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" onChange={(e) => setFiles([...files, ...Array.from(e.target.files ?? [])])} /></label>
-            <Form.Control as="textarea" rows={1} value={text} placeholder="Type a message" onChange={(e) => onType(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send() } }} style={{ resize: 'none' }} />
-            <Button type="submit" disabled={sending || (!text.trim() && files.length === 0)}>{sending ? <Spinner size="sm" /> : <FiSend />}</Button>
+            <label className="btn btn-outline-secondary mb-0 d-flex align-items-center" title="Attach"><FiPaperclip /><input type="file" hidden multiple accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt" onChange={(e) => { addFiles(e.target.files); e.target.value = '' }} /></label>
+            <Form.Control ref={input} as="textarea" rows={rows} value={text} placeholder="Type a message" onChange={(e) => onType(e.target.value)}
+              onPaste={(e) => { if (e.clipboardData.files.length) { e.preventDefault(); addFiles(e.clipboardData.files) } }}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); send() } }} style={{ resize: 'none' }} />
+            <Button type="submit" disabled={!text.trim() && files.length === 0} aria-label="Send"><FiSend /></Button>
           </InputGroup>
         </Form>)}
       <PreviewModal url={preview?.url ?? null} name={preview?.name} contentType={preview?.type} onHide={() => setPreview(null)} />
@@ -238,6 +339,7 @@ function Conversation({ friend, onBack, onChanged }: { friend: Friend; onBack: (
     </>
   )
 }
+
 
 function ReportModal({ show, userId, name, onHide }: { show: boolean; userId: string; name: string; onHide: () => void }) {
   const toast = useToast()

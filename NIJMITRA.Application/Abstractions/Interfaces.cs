@@ -108,6 +108,16 @@ public interface INotificationService
 
 public record TableExport(string Title, IReadOnlyList<string> Headers, IReadOnlyList<IReadOnlyList<string?>> Rows, string? Subtitle = null);
 
+/// <summary>Read-only preview of Office/CSV files (rendered in the browser as a table or text) so users don't have to download them.</summary>
+public interface IOfficePreviewService
+{
+    bool CanPreview(string contentType, string fileName);
+    Task<OfficePreview> PreviewAsync(Stream content, string contentType, string fileName, CancellationToken ct);
+}
+public record OfficePreview(string Kind, IReadOnlyList<PreviewSheet>? Sheets = null, IReadOnlyList<PreviewBlock>? Blocks = null, bool Truncated = false);
+public record PreviewSheet(string Name, IReadOnlyList<IReadOnlyList<string>> Rows, bool Truncated);
+public record PreviewBlock(string Type, string? Text = null, IReadOnlyList<IReadOnlyList<string>>? Rows = null);
+
 public interface IExportService
 {
     byte[] ToExcel(TableExport table);

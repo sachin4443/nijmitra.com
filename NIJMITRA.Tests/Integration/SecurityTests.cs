@@ -281,6 +281,45 @@ public class AuthTests(TestApp app)
         finally { AdminLock.Release(); }
     }
 
+    [Fact]
+    public async Task WebsiteFooterIsAdminManagedAndValidated()
+    {
+        var admin = await AdminAsync();
+        var settings = await admin.GetJson("/api/admin/settings");
+        var obj = System.Text.Json.Nodes.JsonNode.Parse(settings.GetRawText())!.AsObject();
+        var website = obj["website"]!.AsObject();
+        website["companyLine"] = "A product by Test Co";
+        website["columns"]!.AsArray()[0]!["links"]!.AsArray().Add(new System.Text.Json.Nodes.JsonObject { ["labelEn"] = "Blog", ["url"] = "javascript:alert(1)" });
+        var bad = await admin.Http.PutAsJsonAsync("/api/admin/settings", obj);
+        Assert.Equal(HttpStatusCode.BadRequest, bad.StatusCode);
+        website["columns"]!.AsArray()[0]!["links"]!.AsArray().Last()!["url"] = "https://nijmitra.com/blog";
+        website["androidSha256Fingerprints"] = new System.Text.Json.Nodes.JsonArray("aa".PadRight(64, 'b'));
+        (await admin.Http.PutAsJsonAsync("/api/admin/settings", obj)).EnsureSuccessStatusCode();
+
+        var info = await app.CreateClient().GetFromJsonAsync<JsonElement>("/api/system/info");
+        Assert.Equal("A product by Test Co", info.GetProperty("website").GetProperty("companyLine").GetString());
+        Assert.Contains("https://nijmitra.com/blog", info.GetProperty("website").ToString());
+
+        var links = await app.CreateClient().GetFromJsonAsync<JsonElement>("/.well-known/assetlinks.json");
+        var target = links[0].GetProperty("target");
+        Assert.Equal("com.nijmitra.app", target.GetProperty("package_name").GetString());
+        Assert.Equal("AA:BB:" + string.Join(':', Enumerable.Repeat("BB", 30)), target.GetProperty("sha256_cert_fingerprints")[0].GetString()); // normalised format
+    }
+
+    [Fact]
+    public async Task OfficeFilesCanBePreviewedOnlyByOwner()
+    {
+        var (a, b) = (await app.RegisterAsync(), await app.RegisterAsync());
+        var csv = System.Text.Encoding.UTF8.GetBytes("Name,City\nAmit,Delhi\n");
+        var doc = await a.Upload("/api/documents", csv, "list.csv", new() { ["name"] = "List", ["category"] = "Personal" });
+        var id = doc.GetProperty("id").GetGuid();
+        var preview = await a.GetJson($"/api/documents/{id}/download?inline=true&view=preview");
+        Assert.Equal("Amit", preview.GetProperty("sheets")[0].GetProperty("rows")[1][0].GetString());
+        Assert.Equal(HttpStatusCode.NotFound, (await b.Http.GetAsync($"/api/documents/{id}/download?view=preview")).StatusCode);
+        var pdf = await a.Upload("/api/documents", Samples.Pdf, "a.pdf", new() { ["name"] = "Pdf", ["category"] = "Personal" });
+        Assert.Equal(HttpStatusCode.BadRequest, (await a.Http.GetAsync($"/api/documents/{pdf.GetProperty("id").GetGuid()}/download?view=preview")).StatusCode);
+    }
+
     [Fact] // Scenario 10 + impersonation guarantees
     public async Task AdminCannotReadUserSecrets()
     {

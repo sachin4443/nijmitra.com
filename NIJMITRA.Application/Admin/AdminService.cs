@@ -278,10 +278,68 @@ public sealed class AdminService(IAppDbContext db, ICurrentUser current, IAuditS
         var emailActive = await db.CommunicationProviders.AnyAsync(p => p.Channel == NotificationChannel.Email && p.IsActive, ct);
         if (s.RequireMobileOtp && !smsActive) throw new ValidationAppException("requireMobileOtp", "Configure and activate an SMS provider before requiring mobile OTP.");
         if (s.RequireEmailVerification && !emailActive) throw new ValidationAppException("requireEmailVerification", "Configure and activate an email provider before requiring email verification.");
+        s.Website = NormalizeWebsite(s.Website ?? new WebsiteSettings());
         s.LogoFileId = current.LogoFileId; s.FaviconFileId = current.FaviconFileId; // changed via the branding endpoints only
         await settings.SaveAsync(s, AdminId, ct);
         await audit.LogAdminAsync(AdminId, "settings_updated", null, $"idle={s.SessionIdleTimeoutSeconds}s; otp={s.RequireMobileOtp}; email={s.RequireEmailVerification}; 2fa={s.EnforceTwoFactor}; maintenance={s.MaintenanceMode}", ct);
         return await settings.GetAsync(ct);
+    }
+
+    private static readonly string[] SocialPlatforms = ["facebook", "instagram", "x", "youtube", "linkedin", "whatsapp", "telegram", "website"];
+
+    /// <summary>Validates footer content: plain text only, safe link targets (http/https, mailto, tel, site-relative or #section).</summary>
+    internal static WebsiteSettings NormalizeWebsite(WebsiteSettings w)
+    {
+        static string? T(string? v, int max) => TextUtil.Clean(v, max);
+        static string Url(string? u, string field)
+        {
+            u = (u ?? "").Trim();
+            var ok = u.StartsWith('#') || (u.StartsWith('/') && !u.StartsWith("//"))
+                || u.StartsWith("mailto:", StringComparison.OrdinalIgnoreCase) || u.StartsWith("tel:", StringComparison.OrdinalIgnoreCase)
+                || (Uri.TryCreate(u, UriKind.Absolute, out var abs) && (abs.Scheme == Uri.UriSchemeHttps || abs.Scheme == Uri.UriSchemeHttp));
+            if (!ok || u.Length > 500 || u.Any(char.IsWhiteSpace)) throw new ValidationAppException(field, $"\"{u}\" is not a valid link. Use https://…, mailto:, tel:, /page or #section.");
+            return u;
+        }
+        if (w.Columns.Count > 6) throw new ValidationAppException("website.columns", "At most 6 footer columns.");
+        var cols = new List<FooterColumn>();
+        foreach (var c in w.Columns)
+        {
+            var title = T(c.TitleEn, 60);
+            if (title == null) throw new ValidationAppException("website.columns", "Every footer column needs an English title.");
+            if (c.Links.Count > 12) throw new ValidationAppException("website.columns", $"Column \"{title}\" has more than 12 links.");
+            var links = c.Links.Select(l => new FooterLink
+            {
+                LabelEn = T(l.LabelEn, 80) ?? throw new ValidationAppException("website.columns", $"A link in \"{title}\" has no English label."),
+                LabelHi = T(l.LabelHi, 80), Url = Url(l.Url, "website.columns"),
+            }).ToList();
+            cols.Add(new FooterColumn { TitleEn = title, TitleHi = T(c.TitleHi, 60), Links = links });
+        }
+        var social = w.SocialLinks.Take(10).Select(x => new SocialLink
+        {
+            Platform = SocialPlatforms.Contains(x.Platform?.Trim().ToLowerInvariant()) ? x.Platform!.Trim().ToLowerInvariant() : throw new ValidationAppException("website.socialLinks", "Unknown social platform."),
+            Url = Url(x.Url, "website.socialLinks"),
+        }).ToList();
+        var email = T(w.ContactEmail, 120);
+        if (email != null && !System.Net.Mail.MailAddress.TryCreate(email, out _)) throw new ValidationAppException("website.contactEmail", "Enter a valid contact email.");
+        var play = T(w.PlayStoreUrl, 300);
+        if (play != null && !play.StartsWith("https://play.google.com/", StringComparison.OrdinalIgnoreCase)) throw new ValidationAppException("website.playStoreUrl", "Play Store link must start with https://play.google.com/");
+        var pkg = (w.AndroidPackageName ?? "").Trim();
+        if (pkg.Length > 0 && !System.Text.RegularExpressions.Regex.IsMatch(pkg, @"^[a-zA-Z][a-zA-Z0-9_]*(\.[a-zA-Z][a-zA-Z0-9_]*)+$")) throw new ValidationAppException("website.androidPackageName", "Enter a valid Android package name, e.g. com.nijmitra.app");
+        var prints = new List<string>();
+        foreach (var raw in w.AndroidSha256Fingerprints ?? [])
+        {
+            var hex = new string((raw ?? "").Where(Uri.IsHexDigit).ToArray()).ToUpperInvariant();
+            if (hex.Length == 0) continue;
+            if (hex.Length != 64) throw new ValidationAppException("website.androidSha256Fingerprints", $"\"{raw}\" is not a SHA-256 fingerprint (64 hex characters).");
+            prints.Add(string.Join(':', Enumerable.Range(0, 32).Select(i => hex.Substring(i * 2, 2))));
+        }
+        return new WebsiteSettings
+        {
+            AndroidPackageName = pkg, AndroidSha256Fingerprints = prints.Distinct().Take(10).ToList(),
+            AboutEn = T(w.AboutEn, 500) ?? "", AboutHi = T(w.AboutHi, 500), CopyrightName = T(w.CopyrightName, 80) ?? "NijMitra",
+            CompanyLine = T(w.CompanyLine, 120), ContactEmail = email, ContactPhone = T(w.ContactPhone, 30), Address = T(w.Address, 250),
+            PlayStoreUrl = play, Columns = cols, SocialLinks = social,
+        };
     }
 
     public async Task<PlatformSettings> UploadBrandingAsync(string kind, UploadInput input, CancellationToken ct)

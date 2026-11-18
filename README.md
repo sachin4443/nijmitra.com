@@ -18,6 +18,7 @@ NIJMITRA.sln
 NIJMITRA.Domain / Application / Infrastructure / API   – backend (Clean Architecture)
 NIJMITRA.Web                                             – React PWA (user app + /admin)
 NIJMITRA.Tests                                           – xUnit unit + integration tests
+android/                                                 – Android app (Trusted Web Activity) + Play Store listing assets
 docs/                                                    – architecture, database, API, security, admin, deployment, user guide (PDF)
 deployment/                                              – IIS configs, publish / backup / restore / key scripts
 ```
@@ -34,7 +35,7 @@ Development keys are generated automatically into `NIJMITRA.API/App_Data/dev-sec
 
 ## Tests
 ```bash
-NIJMITRA_TEST_DB="Host=localhost;Port=5431;Username=postgres;Password=…" dotnet test NIJMITRA.Tests   # 53 tests, throw-away DB per run
+NIJMITRA_TEST_DB="Host=localhost;Port=5431;Username=postgres;Password=…" dotnet test NIJMITRA.Tests   # 60 tests, throw-away DB per run
 cd NIJMITRA.Web && npx vitest run && npm run build
 ```
 
@@ -42,6 +43,5 @@ cd NIJMITRA.Web && npx vitest run && npm run build
 [Architecture](docs/PROJECT_ARCHITECTURE.md) · [Database design](docs/DATABASE_DESIGN.md) · [ERD](docs/DATABASE_ERD.md) · [API](docs/API_DOCUMENTATION.md) ·
 [Authentication](docs/AUTHENTICATION_FLOW.md) · [Vault security](docs/PASSWORD_VAULT_SECURITY.md) · [Notifications](docs/NOTIFICATION_CONFIGURATION.md) ·
 [Admin guide](docs/ADMIN_GUIDE.md) · [Deployment](docs/DEPLOYMENT_GUIDE.md) · [Git workflow](docs/GIT_WORKFLOW.md) · [Progress](docs/DEVELOPMENT_PROGRESS.md) ·
-[Known issues](docs/KNOWN_ISSUES.md) · **[User guide (PDF)](docs/NijMitra-User-Guide.pdf)**
+[Known issues](docs/KNOWN_ISSUES.md) · [Android app](android/README.md) · **[User guide (PDF)](docs/NijMitra-User-Guide.pdf)**
 
-A product by **OneStopFullStop Solution**.

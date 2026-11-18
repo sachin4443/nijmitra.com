@@ -80,7 +80,7 @@ public class SystemController(ISettingsService settings, IAppDbContext db, NIJMI
         {
             s.ApplicationName, s.Tagline, s.HindiTagline, s.MaintenanceMode, s.MaintenanceMessage, s.AllowRegistration, s.ChatEnabled, s.SupportEmail,
             logoUrl = s.LogoFileId != null ? "/api/system/branding/logo" : null, faviconUrl = s.FaviconFileId != null ? "/api/system/branding/favicon" : null,
-            vapidPublicKey = vapid, maxUploadMb = s.MaxUploadMb, allowedExtensions = s.AllowedExtensions
+            vapidPublicKey = vapid, maxUploadMb = s.MaxUploadMb, allowedExtensions = s.AllowedExtensions, website = s.Website, accountDeletionGraceDays = s.AccountDeletionGraceDays
         });
     }
 
@@ -93,5 +93,26 @@ public class SystemController(ISettingsService settings, IAppDbContext db, NIJMI
         var f = await files.OpenAuthorizedAsync(fid, ct);
         Response.Headers.CacheControl = "public, max-age=3600";
         return File(f.Content, f.ContentType);
+    }
+}
+
+/// <summary>Digital Asset Links for the NijMitra Android app (Trusted Web Activity). Managed in Admin → Settings → Website.</summary>
+[ApiController, AllowAnonymous, Route(".well-known")]
+public class WellKnownController(ISettingsService settings) : ControllerBase
+{
+    [HttpGet("assetlinks.json")]
+    public async Task<IActionResult> AssetLinks(CancellationToken ct)
+    {
+        var w = (await settings.GetAsync(ct)).Website;
+        Response.Headers.CacheControl = "public, max-age=300";
+        if (string.IsNullOrWhiteSpace(w.AndroidPackageName) || w.AndroidSha256Fingerprints.Count == 0) return new JsonResult(Array.Empty<object>());
+        return new JsonResult(new[]
+        {
+            new
+            {
+                relation = new[] { "delegate_permission/common.handle_all_urls" },
+                target = new { @namespace = "android_app", package_name = w.AndroidPackageName, sha256_cert_fingerprints = w.AndroidSha256Fingerprints },
+            },
+        });
     }
 }

@@ -154,3 +154,64 @@ public class TextUtilTests
     [Fact] public void NormalizesIndianMobile() => Assert.Equal("+919876543210", TextUtil.NormalizeMobile("98765 43210"));
     [Fact] public void MasksMobile() => Assert.Equal("*********3210", TextUtil.MaskMobile("+919876543210"));
 }
+
+public class OfficePreviewTests
+{
+    private readonly NIJMITRA.Infrastructure.Services.OfficePreviewService _svc = new();
+
+    [Fact]
+    public async Task ExcelBecomesRowsPerSheet()
+    {
+        using var wb = new ClosedXML.Excel.XLWorkbook();
+        var ws = wb.AddWorksheet("Stock");
+        ws.Cell(1, 1).Value = "Product"; ws.Cell(1, 2).Value = "MRP";
+        ws.Cell(2, 1).Value = "Paracetamol"; ws.Cell(2, 2).Value = 25.5;
+        wb.AddWorksheet("Empty");
+        using var ms = new MemoryStream(); wb.SaveAs(ms); ms.Position = 0;
+        var p = await _svc.PreviewAsync(ms, NIJMITRA.Infrastructure.Services.OfficePreviewService.Xlsx, "stock.xlsx", default);
+        Assert.Equal("table", p.Kind);
+        Assert.Equal(["Stock", "Empty"], p.Sheets!.Select(s => s.Name));
+        Assert.Equal("Paracetamol", p.Sheets![0].Rows[1][0]);
+        Assert.Empty(p.Sheets![1].Rows);
+    }
+
+    [Fact]
+    public async Task CsvHandlesQuotesAndSemicolons()
+    {
+        var csv = "Name;City\n\"Sharma; Neha\";Jaipur\n\"Say \"\"hi\"\"\";Delhi\n";
+        var p = await _svc.PreviewAsync(new MemoryStream(System.Text.Encoding.UTF8.GetBytes(csv)), "text/csv", "c.csv", default);
+        var rows = p.Sheets![0].Rows;
+        Assert.Equal(3, rows.Count);
+        Assert.Equal("Sharma; Neha", rows[1][0]);
+        Assert.Equal("Say \"hi\"", rows[2][0]);
+    }
+
+    [Fact]
+    public async Task WordBecomesPlainTextBlocks()
+    {
+        using var ms = new MemoryStream();
+        using (var doc = DocumentFormat.OpenXml.Packaging.WordprocessingDocument.Create(ms, DocumentFormat.OpenXml.WordprocessingDocumentType.Document))
+        {
+            var main = doc.AddMainDocumentPart();
+            static DocumentFormat.OpenXml.Wordprocessing.Paragraph Para(string text, string? style = null)
+            {
+                var p = new DocumentFormat.OpenXml.Wordprocessing.Paragraph(new DocumentFormat.OpenXml.Wordprocessing.Run(new DocumentFormat.OpenXml.Wordprocessing.Text(text)));
+                if (style != null) p.ParagraphProperties = new DocumentFormat.OpenXml.Wordprocessing.ParagraphProperties(new DocumentFormat.OpenXml.Wordprocessing.ParagraphStyleId { Val = style });
+                return p;
+            }
+            main.Document = new DocumentFormat.OpenXml.Wordprocessing.Document(new DocumentFormat.OpenXml.Wordprocessing.Body(
+                Para("Rent Agreement", "Heading1"), Para("<script>alert(1)</script> Monthly rent ₹18,000")));
+        }
+        ms.Position = 0;
+        var p = await _svc.PreviewAsync(ms, NIJMITRA.Infrastructure.Services.OfficePreviewService.Docx, "a.docx", default);
+        Assert.Equal("document", p.Kind);
+        Assert.Equal("h1", p.Blocks![0].Type);
+        Assert.Equal("<script>alert(1)</script> Monthly rent ₹18,000", p.Blocks![1].Text); // returned as text; the browser renders it as text, never HTML
+    }
+
+    [Fact]
+    public async Task CorruptFileGivesFriendlyError() =>
+        await Assert.ThrowsAsync<ValidationAppException>(() => _svc.PreviewAsync(new MemoryStream([1, 2, 3]), NIJMITRA.Infrastructure.Services.OfficePreviewService.Xlsx, "x.xlsx", default));
+
+    [Fact] public void OnlyOfficeTypesArePreviewable() => Assert.False(_svc.CanPreview("application/pdf", "a.pdf"));
+}

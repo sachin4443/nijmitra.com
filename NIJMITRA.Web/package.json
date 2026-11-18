@@ -23,6 +23,7 @@
     "@tiptap/starter-kit": "^3.34.0",
     "axios": "^1.21.1",
     "bootstrap": "^5.3.9",
+    "pdfjs-dist": "^4.10.38",
     "react": "^19.3.1",
     "react-bootstrap": "^2.10.10",
     "react-dom": "^19.3.1",

@@ -107,6 +107,10 @@ public sealed class MaintenanceJobs(AppDbContext db, ReminderPlanner planner, IR
         await db.UserSessions.Where(s => s.RevokedAt != null && s.RevokedAt < Now.AddDays(-90)).ExecuteDeleteAsync(ct);
         await db.NotificationQueue.Where(q => (q.Status == QueueStatus.Sent || q.Status == QueueStatus.Dead) && q.CreatedAt < Now.AddDays(-30)).ExecuteDeleteAsync(ct);
         await db.ReminderSchedules.Where(r => r.Status != ScheduleStatus.Pending && r.CreatedAt < Now.AddDays(-30)).ExecuteDeleteAsync(ct);
+        // Security & activity logs are kept for one year (fraud prevention / dispute handling), then removed — as stated in the privacy policy.
+        await db.LoginAuditLogs.Where(l => l.Timestamp < Now.AddDays(-365)).ExecuteDeleteAsync(ct);
+        await db.AuditLogs.Where(l => l.Timestamp < Now.AddDays(-365)).ExecuteDeleteAsync(ct);
+        await db.CommunicationLogs.Where(l => l.CreatedAt < Now.AddDays(-365)).ExecuteDeleteAsync(ct);
 
         // Physically remove files soft-deleted more than 30 days ago.
         var files = await db.StoredFiles.IgnoreQueryFilters().Where(f => f.IsDeleted && f.DeletedAt < Now.AddDays(-30)).Take(500).ToListAsync(ct);

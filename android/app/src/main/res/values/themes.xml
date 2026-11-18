@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.NijMitra" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:statusBarColor">@color/colorPrimary</item>
+        <item name="android:navigationBarColor">@color/navigationColor</item>
+    </style>
+    <!-- The launcher shows the splash image while the site loads. -->
+    <style name="Theme.NijMitra.Launcher" parent="Theme.NijMitra">
+        <item name="android:windowBackground">@color/backgroundColor</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+</resources>

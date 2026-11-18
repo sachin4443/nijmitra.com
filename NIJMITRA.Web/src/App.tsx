@@ -6,6 +6,7 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import { ToastProvider } from './contexts/ToastContext'
 import { RealtimeProvider } from './contexts/RealtimeContext'
 import { VaultProvider } from './contexts/VaultContext'
+import { LanguageProvider } from './lib/i18n'
 import { ConfirmProvider, Loading, ReauthProvider } from './components/ui'
 import Layout from './components/Layout'
 import { api } from './lib/api'
@@ -82,6 +83,7 @@ const S = ({ children }: { children: ReactNode }) => <Suspense fallback={<Loadin
 export default function App() {
   return (
     <ThemeProvider onChange={(t) => { api.put('/api/me/theme', { theme: t }).catch(() => {}) }}>
+      <LanguageProvider>
       <ToastProvider>
         <AuthProvider>
           <RealtimeProvider>
@@ -140,6 +142,7 @@ export default function App() {
           </RealtimeProvider>
         </AuthProvider>
       </ToastProvider>
+      </LanguageProvider>
     </ThemeProvider>
   )
 }

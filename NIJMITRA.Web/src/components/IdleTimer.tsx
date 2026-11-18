@@ -36,6 +36,9 @@ export default function IdleTimer() {
       channel.current?.postMessage(now)
       ping()
     }
+    // Opening or reloading the app is user activity: tell the server too, so both idle clocks start together
+    // (otherwise the server could end the session before the browser shows its warning).
+    ping()
     if (channel.current) channel.current.onmessage = (e) => { last.current = Math.max(last.current, Number(e.data) || 0); setRemaining(null) }
     EVENTS.forEach((e) => window.addEventListener(e, onActivity, { passive: true }))
     const vis = () => { if (document.visibilityState === 'visible') tick() }

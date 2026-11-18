@@ -152,8 +152,15 @@ var hasSpa = webRoot != null && File.Exists(Path.Combine(webRoot, "index.html"))
 if (hasSpa)
 {
     app.UseDefaultFiles();
+    // pdf.js (in-app PDF viewer) ships a .mjs worker, character maps (.bcmap) and Type1 fonts (.pfb).
+    var types = new Microsoft.AspNetCore.StaticFiles.FileExtensionContentTypeProvider();
+    types.Mappings[".mjs"] = "text/javascript";
+    types.Mappings[".bcmap"] = "application/octet-stream";
+    types.Mappings[".pfb"] = "application/octet-stream";
+    types.Mappings[".webmanifest"] = "application/manifest+json";
     app.UseStaticFiles(new StaticFileOptions
     {
+        ContentTypeProvider = types,
         OnPrepareResponse = c =>
         {
             var name = c.File.Name;
