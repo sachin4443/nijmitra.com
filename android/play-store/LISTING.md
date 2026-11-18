@@ -6,12 +6,13 @@
 |---|---|---|---|
 | App icon | `icon-512.png` | 512 × 512 PNG | **Yes** |
 | Feature graphic | `feature-graphic-1024x500.png` | 1024 × 500 | **Yes** |
-| Phone screenshots (English listing) | `screenshots-marketing-en/01…08` (with headings) — or the plain `screenshots/` | 1080 × 1920 | **Yes** (2–8) |
+| Phone screenshots (English listing) | `screenshots-marketing-en/01…08` (with headings) — or the plain `screenshots/` | 1080 × 1920 (9:16) | **Yes** (2–8) |
 | Phone screenshots (Hindi translation `hi-IN`) | `screenshots-marketing-hi/01…08` | 1080 × 1920 | Optional |
-| 7-inch tablet screenshots | `tablet-7in/01…06` | 1200 × 1920 | Recommended |
-| 10-inch tablet screenshots | `tablet-10in/01…06` | 2560 × 1600 | Recommended |
+| 7-inch tablet screenshots | `tablet-7in/01…06` | 1080 × 1920 (9:16) | Recommended |
+| 10-inch tablet screenshots | `tablet-10in/01…06` | 2560 × 1440 (16:9) | Recommended |
 | Video (YouTube link) | — | — | Optional |
 
+Play requires phone/tablet screenshots in 16:9 or 9:16 — every file here matches. Foldable screenshots are optional and not included.
 All screenshots show demo data (made-up names and amounts), not real users.
 
 ## Store listing (English)
