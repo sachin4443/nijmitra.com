@@ -4,9 +4,6 @@
         <item name="android:statusBarColor">@color/colorPrimary</item>
         <item name="android:navigationBarColor">@color/navigationColor</item>
     </style>
-    <!-- The launcher shows the splash image while the site loads. -->
-    <style name="Theme.NijMitra.Launcher" parent="Theme.NijMitra">
-        <item name="android:windowBackground">@color/backgroundColor</item>
-        <item name="android:windowNoTitle">true</item>
-    </style>
+    <!-- Same as Google's Bubblewrap TWA template: the launcher activity is translucent and only hands over to the browser. -->
+    <style name="Theme.NijMitra.Launcher" parent="android:Theme.Translucent.NoTitleBar" />
 </resources>

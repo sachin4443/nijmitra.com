@@ -9,7 +9,7 @@ fix and security update on the website is in the app immediately — no new app 
 |---|---|
 | Package name | `com.nijmitra.app` (permanent — cannot be changed after the first upload) |
 | Opens | `https://nijmitra.com/login` (signed-in users go straight to their dashboard) |
-| Version | 1.0.1 (versionCode 2) — 1.0.0 (1) was the first internal-test upload |
+| Version | 1.0.2 (versionCode 3) |
 | Min / target SDK | Android 7.0 (24) / Android 16 (36) |
 | Permissions | `INTERNET`, `POST_NOTIFICATIONS` (Android 13+, only when the user enables alerts) |
 | Size | ~1.5 MB bundle |
